@@ -6,6 +6,11 @@
   <a class="btn btn-primary" href="{{ url_for('datasets.upload') }}">Upload dataset</a>
 </div>
 {% if datasets %}
+<div class="card shadow-sm">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <strong>Datasets ({{ page.total }})</strong>
+    <span class="small text-secondary">Page {{ page.page }} of {{ page.pages }}</span>
+  </div>
 <div class="table-responsive">
   <table class="table table-hover align-middle bg-white shadow-sm">
     <thead>
@@ -42,6 +47,19 @@
     </tbody>
   </table>
 </div>
+{% if page.pages > 1 %}
+<nav aria-label="Dataset pages" class="d-flex justify-content-between align-items-center my-3">
+  <span class="small text-secondary">Showing page {{ page.page }} of {{ page.pages }} ({{ page.total }} datasets)</span>
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item {{ 'disabled' if not page.has_prev }}">
+      <a class="page-link" href="{{ url_for('main.dashboard', page=page.prev_num) }}" {% if not page.has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>Previous</a>
+    </li>
+    <li class="page-item {{ 'disabled' if not page.has_next }}">
+      <a class="page-link" href="{{ url_for('main.dashboard', page=page.next_num) }}" {% if not page.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>Next</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
 {% else %}
 <div class="card shadow-sm">
   <div class="card-body text-center py-5">

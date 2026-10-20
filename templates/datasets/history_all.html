@@ -48,6 +48,19 @@
       {% else %}
       <div class="card-body text-secondary">No assessments yet for this dataset.</div>
       {% endif %}
+      {% if page and page.pages > 1 %}
+      <nav aria-label="Assessment history pages" class="d-flex justify-content-between align-items-center mt-2 px-3 pb-3">
+        <span class="small text-secondary">Page {{ page.page }} of {{ page.pages }} ({{ page.total }} assessments)</span>
+        <ul class="pagination pagination-sm mb-0">
+          <li class="page-item {{ 'disabled' if not page.has_prev }}">
+            <a class="page-link" href="{{ url_for('datasets.history_all', dataset_id=selected.id, page=page.prev_num) }}" {% if not page.has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>Previous</a>
+          </li>
+          <li class="page-item {{ 'disabled' if not page.has_next }}">
+            <a class="page-link" href="{{ url_for('datasets.history_all', dataset_id=selected.id, page=page.next_num) }}" {% if not page.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>Next</a>
+          </li>
+        </ul>
+      </nav>
+      {% endif %}
     </div>
     {% if assessments|length >= 2 %}
     <div class="card shadow-sm mt-4">

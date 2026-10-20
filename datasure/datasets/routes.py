@@ -90,6 +90,8 @@ def list_datasets():
 @login_required
 def history_all():
     """Cross-dataset assessment history for the current user."""
+    from ..pagination import DEFAULT_PAGE_SIZE, paginate_stable
+
     datasets = (
         Dataset.query.filter_by(user_id=current_user.id)
         .order_by(Dataset.name.asc())
@@ -97,7 +99,7 @@ def history_all():
     )
     selected_id = request.args.get("dataset_id", type=int)
     selected = None
-    assessments = []
+    page_state = None
     if selected_id:
         selected = db.session.get(Dataset, selected_id)
         if selected is None or selected.user_id != current_user.id:
@@ -105,14 +107,21 @@ def history_all():
     else:
         selected = next(iter(datasets), None)
     if selected is not None:
-        assessments = (
-            selected.assessments.order_by(Assessment.created_at.desc()).limit(50).all()
+        page = request.args.get("page", 1, type=int)
+        page_state = paginate_stable(
+            selected.assessments.order_by(Assessment.created_at.desc()),
+            page=page,
+            per_page=DEFAULT_PAGE_SIZE,
         )
+        assessments = page_state["items"]
+    else:
+        assessments = []
     return render_template(
         "datasets/history_all.html",
         datasets=datasets,
         selected=selected,
         assessments=assessments,
+        page=page_state,
     )
 
 
