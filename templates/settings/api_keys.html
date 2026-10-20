@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}API keys · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">API keys</h1>
+  <span class="text-secondary small">{{ keys|length }} key(s) · limit 10</span>
+</div>
+
+{% if new_key %}
+<div class="alert alert-success">
+  <strong>API key created: {{ new_key_name }}</strong>
+  <p class="mb-2">Copy your key now — it is shown only once and cannot be retrieved later:</p>
+  <div class="d-flex gap-2 align-items-center">
+    <code id="new-key" class="p-2 bg-white border rounded" style="word-break: break-all; user-select: all;">{{ new_key }}</code>
+    <button class="btn btn-sm btn-outline-secondary" type="button"
+            onclick="navigator.clipboard.writeText(document.getElementById('new-key').textContent)">
+      Copy
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Your keys</strong></div>
+      {% if keys %}
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>Name</th><th>Created</th><th>Last used</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for key in keys %}
+            <tr class="{{ 'text-secondary' if not key.is_active() }}">
+              <td class="fw-semibold">{{ key.name }}</td>
+              <td class="small">{{ key.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td class="small">{{ key.last_used_at.strftime('%Y-%m-%d %H:%M') if key.last_used_at else 'never' }}</td>
+              <td>
+                {% if key.is_active() %}
+                  <span class="badge text-bg-success">active</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">revoked</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                {% if key.is_active() %}
+                <form method="post" action="{{ url_for('settings.revoke_api_key', key_id=key.id) }}"
+                      onsubmit="return confirm('Revoke this key? Clients using it will get 401 errors.')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger">Revoke</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-secondary">
+        No API keys yet. Create one below to use the
+        <code>/api/v1</code> endpoints from scripts and applications.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Create a new key</strong></div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('settings.create_api_key') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-3">
+            <label class="form-label" for="name">Key name</label>
+            <input class="form-control" id="name" name="name" maxlength="80"
+                   placeholder="e.g. ci-runner" required>
+            <div class="form-text">A label for recognising this key in the list.</div>
+          </div>
+          <button class="btn btn-primary" type="submit">Create API key</button>
+        </form>
+      </div>
+      <div class="card-footer small text-secondary">
+        Use keys with <code>X-API-Key: &lt;key&gt;</code> header on
+        <code>/api/v1</code> endpoints. Keys are stored only as SHA-256 hashes;
+        the full value is displayed once at creation and revoked keys cannot
+        be reactivated.
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
