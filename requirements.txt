@@ -1,0 +1,17 @@
+# Core web framework
+flask>=3.0
+flask-sqlalchemy>=3.1
+flask-login>=0.6
+python-dotenv>=1.0
+
+# Data processing
+pandas>=2.0
+numpy>=1.26
+openpyxl>=3.1
+
+# Analytics
+scikit-learn>=1.4
+matplotlib>=3.8
+
+# Development / testing
+pytest>=8.0
