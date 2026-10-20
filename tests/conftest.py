@@ -8,6 +8,16 @@ from pathlib import Path
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _fresh_login_limiter():
+    """Isolate login rate-limit counters between tests."""
+    from datasure.auth.ratelimit import login_limiter
+
+    login_limiter.reset_all()
+    yield
+    login_limiter.reset_all()
+
+
 @pytest.fixture()
 def app(tmp_path, monkeypatch):
     """A fresh application per test with isolated DB and instance dirs."""

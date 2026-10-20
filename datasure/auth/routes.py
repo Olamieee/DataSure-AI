@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 
 from ..extensions import db
@@ -67,12 +67,36 @@ def login():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
+
+        from .ratelimit import address_key, login_limiter, user_key
+        from ..__init__ import get_correlation_id
+
+        keys = (user_key(username), address_key(request.remote_addr or ""))
+        for key in keys:
+            blocked, seconds = login_limiter.is_blocked(key)
+            if blocked:
+                flash(
+                    f"Too many failed attempts. Login is temporarily locked; "
+                    f"try again in about {seconds // 60 + 1} minute(s).",
+                    "danger",
+                )
+                app_logger = current_app.logger
+                app_logger.warning(
+                    "Login blocked by rate limit for key %s [req:%s]",
+                    key.split(":", 1)[0] + ":***", get_correlation_id())
+                return render_template("auth/login.html", form_username=username), 429
+
         user = User.query.filter(
             (User.username.ilike(username)) | (User.email == username.lower())
         ).first()
         if user is None or not user.check_password(password):
+            for key in keys:
+                login_limiter.record_failure(key)
             flash("Invalid username or password.", "danger")
             return render_template("auth/login.html", form_username=username), 401
+
+        for key in keys:
+            login_limiter.reset(key)
         login_user(user, remember=request.form.get("remember") == "on", fresh=True)
         next_target = request.args.get("next")
         # Only allow safe, relative next-URLs (no protocol/host tricks).
