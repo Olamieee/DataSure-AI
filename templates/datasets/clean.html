@@ -27,6 +27,7 @@
         <div class="small text-secondary">{{ suggestion.reason }}</div>
       </div>
       <form method="post" action="{{ url_for('datasets.clean_preview', dataset_id=dataset.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="csrf_token" value="">
         <input type="hidden" name="operation" value="{{ suggestion.operation }}">
         {% for key, value in suggestion.params.items() %}
@@ -50,6 +51,7 @@
     {% for operation in operations %}
     <form class="d-flex align-items-end gap-2 mb-3 border-bottom pb-3 flex-wrap"
           method="post" action="{{ url_for('datasets.clean_preview', dataset_id=dataset.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="me-3" style="min-width: 220px">
         <strong>{{ operation.label }}</strong>
         <div class="small text-secondary">{{ operation.description }}</div>

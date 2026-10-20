@@ -7,6 +7,7 @@
     <div class="card shadow-sm">
       <div class="card-body p-4">
         <form method="post" enctype="multipart/form-data" id="upload-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-3">
             <label class="form-label" for="file">Dataset file</label>
             <input class="form-control" type="file" id="file" name="file"

@@ -39,6 +39,7 @@
   <a class="btn btn-outline-secondary" href="{{ url_for('datasets.clean', dataset_id=dataset.id) }}">← Cancel</a>
   <form method="post" action="{{ url_for('datasets.clean_apply', dataset_id=dataset.id) }}"
         onsubmit="return confirm('Apply this cleaning operation? A new dataset version will be stored; the original remains preserved.')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="operation" value="{{ operation }}">
     {% for key, value in params.items() %}
       {% if value is sequence and value is not string %}

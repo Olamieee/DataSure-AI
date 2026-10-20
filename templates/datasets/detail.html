@@ -17,6 +17,7 @@
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('datasets.cleaning_history', dataset_id=dataset.id) }}">History</a>
     <form method="post" action="{{ url_for('datasets.delete', dataset_id=dataset.id) }}"
           onsubmit="return confirm('Delete this dataset and all its assessments? This cannot be undone.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
     </form>
   </div>
@@ -57,6 +58,7 @@
       <div class="card-header bg-white"><strong>Run an assessment</strong></div>
       <div class="card-body">
         <form method="post" action="{{ url_for('datasets.assess', dataset_id=dataset.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <div class="mb-2">
             <label class="form-label" for="target_column">Prediction target (optional)</label>
             <select class="form-select" id="target_column" name="target_column">

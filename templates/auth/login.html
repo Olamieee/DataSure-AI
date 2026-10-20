@@ -7,7 +7,7 @@
       <div class="card-body p-4">
         <h1 class="h4 mb-3">Log in</h1>
         <form method="post">
-          <div class="mb-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">          <div class="mb-3">
             <label class="form-label" for="username">Username or email</label>
             <input class="form-control" id="username" name="username" value="{{ form_username }}" required autofocus>
           </div>
