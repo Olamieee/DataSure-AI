@@ -88,6 +88,8 @@ class Dataset(db.Model, TimestampMixin):
     storage_version = db.Column(db.Integer, nullable=False, default=1)  # bumped on cleaning
     is_cleaned = db.Column(db.Boolean, nullable=False, default=False)
     has_original = db.Column(db.Boolean, nullable=False, default=True)
+    contract_id = db.Column(db.Integer, db.ForeignKey("schema_contracts.id"), nullable=True)
+    contract_passed = db.Column(db.Boolean)
 
     assessments = db.relationship(
         "Assessment", backref="dataset", lazy="dynamic", cascade="all, delete-orphan"
@@ -115,6 +117,31 @@ class Assessment(db.Model, TimestampMixin):
     target_column = db.Column(db.String(255))
     duration_ms = db.Column(db.Integer)
     label = db.Column(db.String(120))  # user-facing version label
+
+
+class SchemaContract(db.Model, TimestampMixin):
+    """Reusable schema expectations for validating uploaded datasets.
+
+    contract_json layout:
+    {
+      "allow_extra_columns": bool,
+      "columns": [
+        {"name": str, "kind": "numeric"|"categorical"|"datetime"|"boolean"|"text",
+         "nullable": bool, "allowed_values": [..] | null}
+      ]
+    }
+    """
+    __tablename__ = "schema_contracts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.String(500))
+    contract_json = db.Column(db.JSON, nullable=False)
+
+    user = db.relationship("User", backref=db.backref("schema_contracts", lazy="dynamic",
+                                                      cascade="all, delete-orphan"))
+    datasets = db.relationship("Dataset", backref="schema_contract", lazy="dynamic")
 
 
 class CleaningOperation(db.Model, TimestampMixin):
