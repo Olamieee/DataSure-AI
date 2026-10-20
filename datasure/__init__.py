@@ -79,6 +79,7 @@ def create_app(config_name: str | None = None) -> Flask:
     # Register blueprints.
     from .api.routes import bp as api_bp
     from .auth.routes import bp as auth_bp
+    from .contracts.routes import bp as contracts_bp
     from .datasets.routes import bp as datasets_bp
     from .main.routes import bp as main_bp
     from .settings.routes import bp as settings_bp
@@ -88,6 +89,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(datasets_bp, url_prefix="/datasets")
     app.register_blueprint(api_bp, url_prefix="/api/v1")
     app.register_blueprint(settings_bp, url_prefix="/settings")
+    app.register_blueprint(contracts_bp, url_prefix="/contracts")
     csrf.exempt(api_bp)  # API clients authenticate with keys, not form tokens
 
     with app.app_context():

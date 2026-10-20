@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Contract violations · DataSure AI{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Contract validation failed</h1>
+<div class="alert alert-danger">
+  Dataset <strong>{{ dataset.name }}</strong> does not satisfy contract
+  <strong>{{ contract.name }}</strong> — {{ violations|length }} rule(s) violated.
+</div>
+<ul class="list-group mb-4 shadow-sm">
+  {% for violation in violations %}
+  <li class="list-group-item">
+    <span class="badge text-bg-danger me-2">{{ violation.type }}</span>
+    {% if violation.column %}<code>{{ violation.column }}</code> — {% endif %}
+    {{ violation.message }}
+  </li>
+  {% endfor %}
+</ul>
+<a class="btn btn-outline-secondary" href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">← Back to dataset</a>
+{% endblock %}

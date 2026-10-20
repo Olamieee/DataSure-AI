@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Schema contracts · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Schema contracts</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('main.dashboard') }}">← Dashboard</a>
+</div>
+<div class="card shadow-sm mb-4">
+  <div class="card-body p-3 small text-secondary">
+    A contract records the columns a dataset <em>should</em> have: required types,
+    nullability and permitted category values. Generate contracts from an uploaded
+    dataset, then validate later uploads against them — violations are reported
+    with counts and example values instead of generic failures.
+  </div>
+</div>
+{% if contracts %}
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead class="table-light"><tr><th>Name</th><th>Columns</th><th>Created</th><th></th></tr></thead>
+      <tbody>
+        {% for contract in contracts %}
+        <tr>
+          <td class="fw-semibold"><a href="{{ url_for('contracts.detail', contract_id=contract.id) }}">{{ contract.name }}</a>
+            <div class="small text-secondary">{{ contract.description }}</div></td>
+          <td>{{ contract.contract_json.columns|length }}</td>
+          <td class="small">{{ contract.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td class="text-end">
+            <form method="post" action="{{ url_for('contracts.delete', contract_id=contract.id) }}"
+                  onsubmit="return confirm('Delete this contract?')">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-outline-danger">Delete</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card shadow-sm">
+  <div class="card-body text-center py-5">
+    <p class="text-secondary mb-1">No contracts yet.</p>
+    <p class="small text-secondary mb-3">A contract can be generated with one click from any uploaded dataset's schema.</p>
+    <a class="btn btn-primary" href="{{ url_for('main.dashboard') }}">Pick a dataset</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

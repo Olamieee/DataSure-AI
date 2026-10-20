@@ -150,7 +150,7 @@ def _kind_violation(name: str, kind: str, bad_values: pd.Series) -> dict:
 def contract_from_dataframe(df: pd.DataFrame, name: str,
                             description: str | None = None) -> dict:
     """Build contract_json from an uploaded dataset's inferred schema."""
-    from .datasets.ingest import dataframe_schema
+    from ..datasets.ingest import dataframe_schema
 
     columns: list[dict[str, Any]] = []
     for entry in dataframe_schema(df):

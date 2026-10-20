@@ -84,6 +84,42 @@
         <p class="small text-secondary mt-2 mb-0">Cleaned files are saved as a new version; the original upload is preserved.</p>
       </div>
     </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white"><strong>Schema contracts</strong>
+        {% if dataset.contract_id %}
+          <span class="badge {{ 'text-bg-success' if dataset.contract_passed else 'text-bg-danger' }} ms-1">
+            {{ 'passed' if dataset.contract_passed else 'violations found' }}
+          </span>
+        {% endif %}
+      </div>
+      <div class="card-body py-3">
+        <form method="post" action="{{ url_for('contracts.validate_dataset', dataset_id=dataset.id) }}"
+              class="d-flex gap-2 align-items-end flex-wrap">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div>
+            <label class="form-label small mb-1" for="contract_id">Assign and validate contract</label>
+            <select class="form-select form-select-sm" id="contract_id" name="contract_id" required>
+              {% for contract in user_contracts %}
+                <option value="{{ contract.id }}">{{ contract.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-sm btn-outline-primary" type="submit">Validate now</button>
+        </form>
+        <form method="post" action="{{ url_for('contracts.create_from_dataset', dataset_id=dataset.id) }}"
+              class="d-flex gap-2 align-items-end flex-wrap mt-3 pt-3 border-top">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div>
+            <label class="form-label small mb-1" for="contract_name">New contract from this schema</label>
+            <input class="form-control form-control-sm" id="contract_name" name="name"
+                   placeholder="Contract name" maxlength="120" required>
+          </div>
+          <button class="btn btn-sm btn-outline-primary" type="submit">Create</button>
+        </form>
+        <p class="small text-secondary mt-2 mb-0">Manage all contracts on the <a href="{{ url_for('contracts.list_contracts') }}">contracts page</a>.</p>
+      </div>
+    </div>
   </div>
 </div>
 

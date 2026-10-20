@@ -19,7 +19,7 @@ from flask_login import current_user, login_required
 
 from ..assessment import load_dataset_dataframe, run_assessment
 from ..datasets.ingest import dataset_preview, dataframe_schema
-from ..models import Assessment, CleaningOperation, Dataset, db
+from ..models import Assessment, CleaningOperation, Dataset, SchemaContract, db
 from ..storage import delete_file, sanitize_display_name, user_upload_dir
 from .ingest import DatasetParseError, parse_uploaded_dataset
 
@@ -136,6 +136,11 @@ def detail(dataset_id: int):
         "latest_assessment": latest,
         "schema": schema,
         "preview": preview,
+        "user_contracts": (
+            SchemaContract.query.filter_by(user_id=current_user.id)
+            .order_by(SchemaContract.name.asc())
+            .all()
+        ),
         "max_upload_mb": int(current_app.config["MAX_CONTENT_LENGTH"] / (1024 * 1024)),
         "registrations": None,
     }

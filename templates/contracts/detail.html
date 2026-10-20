@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ contract.name }} · Schema contracts · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">{{ contract.name }}</h1>
+  <form method="post" action="{{ url_for('contracts.delete', contract_id=contract.id) }}"
+        onsubmit="return confirm('Delete this contract?')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn btn-sm btn-outline-danger">Delete contract</button>
+  </form>
+</div>
+<p class="text-secondary">{{ contract.description }}</p>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>Expected columns</strong>
+    <span class="small text-secondary">({{ contract.contract_json["columns"]|length }})</span></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr><th>Column</th><th>Kind</th><th>Nullable</th><th>Allowed values</th></tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="fw-semibold">{{ row.name }}</td>
+          <td><span class="badge text-bg-light">{{ row.kind }}</span></td>
+          <td>{{ 'yes' if row.nullable else 'no' }}</td>
+          <td class="small">{{ row.allowed_values | join(', ') if row.allowed_values else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer small text-secondary">
+    Extra columns are {{ 'rejected' if not contract.contract_json['allow_extra_columns'] else 'allowed' }}
+    (allow_extra_columns = {{ contract.contract_json['allow_extra_columns'] }}).
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-white"><strong>Datasets validated against this contract ({{ datasets_used|length }})</strong></div>
+  {% if datasets_used %}
+  <ul class="list-group list-group-flush">
+    {% for dataset in datasets_used %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+      <a href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">{{ dataset.name }}</a>
+      <span class="badge {{ 'text-bg-success' if dataset.contract_passed else 'text-bg-danger' }}">
+        {{ 'passed' if dataset.contract_passed else 'violations found' }}
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="card-body text-secondary small">No datasets have been validated with it yet.</div>
+  {% endif %}
+</div>
+{% endblock %}
