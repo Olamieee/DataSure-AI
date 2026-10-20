@@ -99,9 +99,11 @@ assert resp.status_code == 200, "download failed"
 
 # API with API key
 with app.app_context():
+    from sqlalchemy import select
     from datasure.models import User
-    u = db.session.scalar(db.__class__ and __import__("sqlalchemy").select(User).where(User.username == "tester"))
-    raw_key = u.generate_api_key()
+    from datasure.auth.apikeys import create_key
+    u = db.session.scalar(select(User).where(User.username == "tester"))
+    _record, raw_key = create_key(u, "smoke test key")
     db.session.commit()
 resp = client.get("/api/v1/datasets", headers={"X-API-Key": raw_key})
 assert resp.status_code == 200, f"api failed: {resp.status_code} {resp.data[:200]}"

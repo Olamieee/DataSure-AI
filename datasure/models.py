@@ -5,8 +5,6 @@ reproducible snapshots. Sensitive data is never stored in logs.
 """
 from __future__ import annotations
 
-import hashlib
-import secrets
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
@@ -31,7 +29,6 @@ class User(UserMixin, db.Model, TimestampMixin):
     username = db.Column(db.String(64), unique=True, nullable=False, index=True)
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(256), nullable=False)
-    api_key_hash = db.Column(db.String(64), unique=True, nullable=True)
     is_active_user = db.Column(db.Boolean, nullable=False, default=True)
 
     datasets = db.relationship("Dataset", backref="owner", lazy="dynamic", cascade="all, delete-orphan")
@@ -41,12 +38,6 @@ class User(UserMixin, db.Model, TimestampMixin):
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
-
-    def generate_api_key(self) -> str:
-        """Create a new API key; only its SHA-256 hash is persisted."""
-        raw = secrets.token_urlsafe(32)
-        self.api_key_hash = hashlib.sha256(raw.encode("utf-8")).hexdigest()
-        return raw
 
     # UserMixin compatibility -------------------------------------------------
     @property
@@ -59,6 +50,23 @@ class User(UserMixin, db.Model, TimestampMixin):
 
     def get_id(self) -> str:
         return str(self.id)
+
+
+class ApiKey(db.Model, TimestampMixin):
+    __tablename__ = "api_keys"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    name = db.Column(db.String(80), nullable=False)  # user-chosen label
+    key_hash = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    last_used_at = db.Column(db.DateTime)
+    revoked_at = db.Column(db.DateTime)
+
+    def is_active(self) -> bool:
+        return self.revoked_at is None
+
+    user = db.relationship("User", backref=db.backref("api_keys", lazy="dynamic",
+                                                      cascade="all, delete-orphan"))
 
 
 class Dataset(db.Model, TimestampMixin):

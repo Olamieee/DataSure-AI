@@ -29,12 +29,14 @@ def test_passwords_never_stored_in_plain(app, logged_in_user):
 
 
 def test_api_key_not_stored_in_plain(app, logged_in_user):
-    from datasure.models import User, db
+    from datasure.auth.apikeys import create_key
+    from datasure.models import ApiKey, db
     with app.app_context():
+        from datasure.models import User
         user = db.session.query(User).filter_by(username="testuser").one()
-        raw = user.generate_api_key()
-        user2 = db.session.get(User, user.id)
-        assert raw not in str(user2.api_key_hash)
+        _record, raw = create_key(user, "plain check")
+        stored = db.session.query(ApiKey).filter_by(user_id=user.id).first()
+        assert raw not in str(stored.key_hash)
 
 
 def test_error_page_does_not_leak_paths(app, client, logged_in_user):

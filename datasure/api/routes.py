@@ -11,7 +11,7 @@ from flask_login import current_user
 
 from ..assessment import load_dataset_dataframe
 from ..datasets.ingest import DatasetParseError
-from ..models import Assessment, CleaningOperation, Dataset, User, db
+from ..models import Assessment, CleaningOperation, Dataset, db
 
 bp = Blueprint("api", __name__)
 
@@ -41,13 +41,12 @@ def _authenticate():
         return None  # health/readiness probes are unauthenticated
     api_key = request.headers.get("X-API-Key", "")
     if api_key:
-        import hashlib
+        from ..auth.apikeys import authenticate_key
 
-        digest = hashlib.sha256(api_key.encode("utf-8")).hexdigest()
-        user = User.query.filter_by(api_key_hash=digest).first()
-        if user is None:
+        result = authenticate_key(api_key)
+        if result is None or not result[1].is_active_user:
             raise ApiError("invalid API key", 401)
-        request.environ["datasure_api_user"] = user
+        request.environ["datasure_api_user"] = result[1]
         return None
     if current_user.is_authenticated:
         return None

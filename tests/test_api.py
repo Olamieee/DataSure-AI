@@ -8,9 +8,10 @@ from datasure.models import User, db
 
 def _get_user_api_key(app):
     with app.app_context():
+        from datasure.auth.apikeys import create_key
+        from datasure.models import User
         user = db.session.query(User).filter_by(username="testuser").one()
-        raw = user.generate_api_key()
-        db.session.commit()
+        _record, raw = create_key(user, "test key")
     return raw
 
 
