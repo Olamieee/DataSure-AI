@@ -39,7 +39,7 @@
               <td>{{ assessment.label or '—' }}</td>
               <td><span class="badge {{ 'text-bg-success' if assessment.quality_score >= 80 else ('text-bg-warning text-dark' if assessment.quality_score >= 60 else 'text-bg-danger') }}">{{ '%.1f'|format(assessment.quality_score) }}</span></td>
               <td>{{ assessment.row_count }}</td>
-              <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('datasets.assessment', dataset_id=selected.id, assessment_id=assessment.id) }}">Open</a></td>
+          <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('datasets.assessment', dataset_id=selected.id, assessment_id=assessment.id) }}">Open</a></td>
             </tr>
             {% endfor %}
           </tbody>
@@ -53,6 +53,31 @@
     <div class="card shadow-sm mt-4">
       <div class="card-header bg-white"><strong>Score trend</strong></div>
       <div class="card-body"><canvas id="trendChart" height="90"></canvas></div>
+    </div>
+    <div class="card shadow-sm mt-4">
+      <div class="card-header bg-white"><strong>Compare two assessments</strong></div>
+      <div class="card-body">
+        <form method="get" action="{{ url_for('datasets.compare', dataset_id=selected.id) }}"
+              class="d-flex gap-2 align-items-end flex-wrap">
+          <div>
+            <label class="form-label small mb-1" for="from">Before</label>
+            <select class="form-select form-select-sm" id="from" name="from" required>
+              {% for assessment in assessments %}
+                <option value="{{ assessment.id }}">#{{ assessment.id }} ({{ assessment.created_at.strftime('%m-%d %H:%M') }}, {{ '%.1f'|format(assessment.quality_score) }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label small mb-1" for="cmp-to">After</label>
+            <select class="form-select form-select-sm" id="cmp-to" name="to" required>
+              {% for assessment in assessments %}
+                <option value="{{ assessment.id }}" {{ 'selected' if loop.index0 == 1 }}>#{{ assessment.id }} ({{ assessment.created_at.strftime('%m-%d %H:%M') }}, {{ '%.1f'|format(assessment.quality_score) }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button class="btn btn-sm btn-primary" type="submit">Compare</button>
+        </form>
+      </div>
     </div>
     {% endif %}
     {% else %}

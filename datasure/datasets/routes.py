@@ -377,6 +377,37 @@ def cleaning_history(dataset_id: int):
     )
 
 
+@bp.route("/<int:dataset_id>/compare")
+@login_required
+def compare(dataset_id: int):
+    """Side-by-side comparison of two assessments of this dataset."""
+    dataset = _owned_dataset(dataset_id)
+    id_from = request.args.get("from", type=int)
+    id_to = request.args.get("to", type=int)
+    if not id_from or not id_to:
+        flash("Choose two assessments to compare.", "warning")
+        return redirect(url_for("datasets.history_all", dataset_id=dataset.id))
+    if id_from == id_to:
+        flash("Select two different assessments.", "warning")
+        return redirect(url_for("datasets.history_all", dataset_id=dataset.id))
+    assessment_from = db.session.get(Assessment, id_from)
+    assessment_to = db.session.get(Assessment, id_to)
+    if (assessment_from is None or assessment_to is None
+            or assessment_from.dataset_id != dataset.id
+            or assessment_to.dataset_id != dataset.id):
+        abort(404)
+    from ..profiling.compare import compare_assessments
+
+    result = compare_assessments(assessment_from, assessment_to)
+    return render_template(
+        "datasets/compare.html",
+        dataset=dataset,
+        assessment_from=assessment_from,
+        assessment_to=assessment_to,
+        result=result,
+    )
+
+
 # helpers --------------------------------------------------------------------
 def _clean_payload_or_fail(dataset: Dataset):
     if not request.form.get("operation"):

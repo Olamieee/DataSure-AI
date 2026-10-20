@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% block title %}Compare assessments · {{ dataset.name }} · DataSure AI{% endblock %}
+
+{% macro score_card(title, value, delta) %}
+  <div class="card text-center shadow-sm h-100">
+    <div class="card-body">
+      <div class="small text-secondary mb-1">{{ title }}</div>
+      <div class="h3 mb-1">
+        {{ '%.1f'|format(value) if value is not none else '—' }}
+        {% if delta is not none and delta != 0 %}
+          <span class="badge {{ 'text-bg-success' if delta > 0 else 'text-bg-danger' }}">
+            {{ '%+.1f'|format(delta) }}
+          </span>
+        {% elif delta == 0 %}
+          <span class="badge text-bg-secondary">no change</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endmacro %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Assessment comparison — {{ dataset.name }}</h1>
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('datasets.history_all', dataset_id=dataset.id) }}">← History</a>
+</div>
+<p class="text-secondary">
+  Comparing <strong>#{{ assessment_from.id }}</strong>
+  ({{ assessment_from.created_at.strftime('%Y-%m-%d %H:%M') }})
+  with <strong>#{{ assessment_to.id }}</strong>
+  ({{ assessment_to.created_at.strftime('%Y-%m-%d %H:%M') }}).
+</p>
+
+{% if result.columns_changed %}
+<div class="alert alert-warning">
+  <strong>Data structure changed between these assessments.</strong>
+  <ul class="mb-0">{% for note in result.columns_changed %}<li>{{ note }}</li>{% endfor %}</ul>
+  Scores are still comparable, but treat them as indicative: the datasets
+  being assessed are not identical in shape.
+</div>
+{% endif %}
+
+<div class="alert alert-light">
+  {{ result.verdict }} Shape:
+  {{ result.shape.rows.from }} → {{ result.shape.rows.to }} rows,
+  {{ result.shape.columns.from }} → {{ result.shape.columns.to }} columns.
+</div>
+
+<h2 class="h4 mb-3">Quality scores</h2>
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    {{ score_card('Overall', result.overall.to, result.overall.delta) }}
+  </div>
+  {% for name, dimension in result.dimensions.items() %}
+  <div class="col-md-3">
+    {{ score_card(name | capitalize, dimension.to, dimension.delta) }}
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white"><strong>Resolved issues ({{ result.issues.resolved|length }})</strong></div>
+      <div class="card-body">
+        {% if result.issues.resolved %}
+          <ul class="mb-0">
+            {% for issue in result.issues.resolved %}
+            <li><code>{{ issue.kind }}</code> <span class="text-secondary">{{ issue.message }}</span></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <span class="text-secondary">No issues disappeared between these assessments.</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white"><strong>New issues ({{ result.issues.new|length }})</strong></div>
+      <div class="card-body">
+        {% if result.issues.new %}
+          <ul class="mb-0">
+            {% for issue in result.issues.new %}
+            <li><code>{{ issue.kind }}</code> <span class="badge text-bg-danger">{{ issue.severity }}</span> <span class="text-secondary">{{ issue.message }}</span></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <span class="text-secondary">No new issues were introduced.</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Severity changes ({{ result.issues.severity_changed|length }})</strong></div>
+      <div class="card-body">
+        {% if result.issues.severity_changed %}
+          <ul class="mb-0">
+            {% for change in result.issues.severity_changed %}
+            <li><code>{{ change.kind }}</code>{% if change.columns %} ({{ change.columns | join(', ') }}){% endif %}:
+              <span class="badge text-bg-secondary">{{ change.from }}</span> →
+              <span class="badge {{ 'text-bg-danger' if change.to == 'critical' else 'text-bg-warning text-dark' }}">{{ change.to }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <span class="text-secondary">No issue severity changed.</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
