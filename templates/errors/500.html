@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Server error · DataSure AI{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-6">Something went wrong on our side</h1>
+  <p class="text-secondary">The error has been logged. If it keeps happening,
+    contact support and include this request identifier:</p>
+  <p><code class="fs-5 px-3 py-2 border rounded bg-light">{{ request_id or 'n/a' }}</code></p>
+  <a class="btn btn-primary mt-2" href="{{ url_for('main.dashboard') }}">Back to dashboard</a>
+</div>
+{% endblock %}

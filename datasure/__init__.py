@@ -6,21 +6,53 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from pathlib import Path
 
-from flask import Flask
+from flask import Flask, render_template, request
 
 
 def _configure_logging(app: Flask) -> None:
     logging.basicConfig(
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        format="%(asctime)s %(levelname)s %(name)s [req:%(request_id)s]: %(message)s",
         level=logging.DEBUG if app.testing else logging.INFO,
     )
+    logging.setLogRecordFactory(_record_factory)
     # Third-party libraries are noisy at DEBUG; keep them at WARNING.
     for noisy in ("matplotlib", "fontTools", "matplotlib.font_manager"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
-    app.logger.setLevel(logging.DEBUG if app.debug else logging.INFO)
     # Note: request bodies are never logged - they may contain dataset contents.
+
+
+def _record_factory(*args, **kwargs) -> logging.LogRecord:
+    """Ensure every log record carries a request_id even outside requests."""
+    record = logging.LogRecord(*args, **kwargs)
+    record.request_id = get_correlation_id()
+    return record
+
+
+_CORRELATION_KEY = "datasure_request_id"
+
+
+def get_correlation_id() -> str:
+    """Stable per-request correlation id shared by logs and error responses.
+
+    Returns '' when logging happens outside a request context (CLI, startup),
+    so log lines stay well-formed everywhere.
+    """
+    try:
+        from flask import has_request_context, request
+
+        if not has_request_context():
+            return ""
+        value = request.environ.get(_CORRELATION_KEY)
+        if value:
+            return value
+        value = uuid.uuid4().hex[:12]
+        request.environ[_CORRELATION_KEY] = value
+        return value
+    except Exception:  # pragma: no cover - logging must never raise
+        return ""
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -93,6 +125,20 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(contracts_bp, url_prefix="/contracts")
     app.register_blueprint(rules_bp, url_prefix="/rules")
     csrf.exempt(api_bp)  # API clients authenticate with keys, not form tokens
+
+    @app.after_request
+    def _stamp_request_id(response):
+        """Expose the correlation id so users can report it with issues."""
+        response.headers["X-Request-ID"] = get_correlation_id()
+        return response
+
+    @app.errorhandler(500)
+    def _internal_error(error):
+        request_id = get_correlation_id()
+        app.logger.error("Internal error [%s]: %s", request_id, error)
+        if request.accept_mimetypes.accept_html:
+            return render_template("errors/500.html", request_id=request_id), 500
+        return {"error": "internal server error", "request_id": request_id}, 500
 
     with app.app_context():
         db.create_all()
