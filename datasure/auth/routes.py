@@ -113,3 +113,37 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for("main.index"))
+
+
+@bp.route("/change-password", methods=["GET", "POST"])
+@login_required
+def change_password():
+    """Change the current user's password after re-verifying the old one."""
+    if request.method == "POST":
+        current_password = request.form.get("current_password") or ""
+        new_password = request.form.get("new_password") or ""
+        confirm = request.form.get("confirm_password") or ""
+
+        errors: list[str] = []
+        if not current_user.check_password(current_password):
+            errors.append("Your current password is incorrect.")
+        if len(new_password) < 8:
+            errors.append("New password must be at least 8 characters long.")
+        if new_password == current_password and new_password:
+            errors.append("The new password must be different from the current one.")
+        if new_password != confirm:
+            errors.append("New passwords do not match.")
+        if errors:
+            for message in errors:
+                flash(message, "danger")
+            return render_template("auth/change_password.html"), 400
+
+        current_user.set_password(new_password)
+        db.session.commit()
+        # keep the session valid but mark it fresh; other devices keep their
+        # sessions because there is no server-side session registry yet
+        login_user(current_user, fresh=True)
+        flash("Password changed.", "success")
+        return redirect(url_for("settings.api_keys"))
+
+    return render_template("auth/change_password.html")

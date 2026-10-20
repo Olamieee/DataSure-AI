@@ -64,9 +64,25 @@ class Config:
 
     JSON_SORT_KEYS = False
 
+    # Applied to every response by the factory; harmless locally, valuable
+    # behind a browser.
+    SECURITY_HEADERS = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "same-origin",
+    }
+
 
 class DevelopmentConfig(Config):
     DEBUG = True
+
+
+class ProductionConfig(Config):
+    # Cookies only over HTTPS (the factory also sets this unless app.debug).
+    SESSION_COOKIE_SECURE = True
+    # Refresh the permanent-session expiry on each request so the 12h
+    # lifetime counts from the last activity (idle timeout behaviour).
+    SESSION_REFRESH_EACH_REQUEST = True
 
 
 class TestingConfig(Config):

@@ -80,12 +80,16 @@ def create_app(config_name: str | None = None) -> Flask:
 
         app.config.from_object(TestingConfig)
     else:
-        from .config import Config
+        from .config import ProductionConfig
 
-        app.config.from_object(Config)
+        app.config.from_object(ProductionConfig)
         # Serve secure cookies unless running locally with debug enabled.
         if not app.debug:
             app.config["SESSION_COOKIE_SECURE"] = True
+        app.config.setdefault(
+            "SESSION_COOKIE_SECURE",
+            not app.debug,
+        )
 
     # Fail fast in production if the secret key is not configured.
     if not app.config.get("SECRET_KEY") and not app.config.get("TESTING"):
@@ -130,6 +134,8 @@ def create_app(config_name: str | None = None) -> Flask:
     def _stamp_request_id(response):
         """Expose the correlation id so users can report it with issues."""
         response.headers["X-Request-ID"] = get_correlation_id()
+        for header, value in app.config.get("SECURITY_HEADERS", {}).items():
+            response.headers.setdefault(header, value)
         return response
 
     @app.errorhandler(500)
