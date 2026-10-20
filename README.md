@@ -3,6 +3,8 @@
 **AI Dataset Quality and Validation Platform** — profile CSV/Excel datasets, detect
 data quality problems, score quality transparently, and clean with full audit history.
 
+[![tests](https://github.com/Olamieee/DataSure-AI/actions/workflows/tests.yml/badge.svg)](https://github.com/Olamieee/DataSure-AI/actions/workflows/tests.yml)
+
 DataSure AI helps data scientists, ML engineers, researchers and analysts assess
 their datasets *before* using them for analytics or machine learning: it measures
 missingness, duplicates, type inconsistencies, distribution problems and suspected
