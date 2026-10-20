@@ -119,6 +119,27 @@ class Assessment(db.Model, TimestampMixin):
     label = db.Column(db.String(120))  # user-facing version label
 
 
+class AuditEvent(db.Model, TimestampMixin):
+    """Who-did-what trace for important actions (no dataset content stored).
+
+    Detail payloads are limited to identifiers and operation names; never
+    passwords, API key material or dataset values.
+    """
+    __tablename__ = "audit_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    action = db.Column(db.String(64), nullable=False, index=True)
+    dataset_id = db.Column(db.Integer,
+                           db.ForeignKey("datasets.id", ondelete="SET NULL"),
+                           nullable=True, index=True)
+    detail_json = db.Column(db.JSON, nullable=False, default=dict)
+    request_id = db.Column(db.String(16), nullable=True)
+
+    user = db.relationship("User", backref=db.backref("audit_events", lazy="dynamic",
+                                                      cascade="all, delete-orphan"))
+
+
 class ValidationRule(db.Model, TimestampMixin):
     """Reusable, dataset-agnostic validation rules owned by a user.
 

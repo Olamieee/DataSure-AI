@@ -84,7 +84,11 @@ def detail(contract_id: int):
 @login_required
 def delete(contract_id: int):
     contract = _owned_contract(contract_id)
+    name = contract.name
     db.session.delete(contract)
+    from ..audit import record_audit
+
+    record_audit("contract_deleted", current_user.id, name=name)
     db.session.commit()
     flash("Contract deleted. Uploaded datasets that used it are unaffected.", "info")
     return redirect(url_for("contracts.list_contracts"))

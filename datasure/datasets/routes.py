@@ -243,6 +243,10 @@ def delete(dataset_id: int):
     upload_dir = user_upload_dir(current_app.instance_path, dataset.user_id)
     delete_file(upload_dir / dataset.storage_filename)
     db.session.delete(dataset)
+    from ..audit import record_audit
+
+    record_audit("dataset_deleted", current_user.id, dataset_id=dataset.id,
+                 name=dataset.name)
     db.session.commit()
     flash("Dataset deleted.", "info")
     return redirect(url_for("main.dashboard"))
@@ -368,6 +372,11 @@ def clean_apply(dataset_id: int):
     dataset.column_count = int(result.shape[1])
     dataset.size_bytes = _file_size_bytes(current_app, dataset.user_id, filename)
     db.session.add(operation_record)
+
+    from ..audit import record_audit
+
+    record_audit("cleaning_applied", current_user.id, dataset_id=dataset.id,
+                 operation=operation, version=dataset.storage_version + 1)
     db.session.commit()
     flash(f"Cleaning operation '{operation}' applied and recorded.", "success")
     return redirect(url_for("datasets.clean", dataset_id=dataset.id))
@@ -387,9 +396,11 @@ def cleaning_history(dataset_id: int):
         .order_by(Assessment.created_at.desc())
         .all()
     )
+    from ..audit import dataset_events
+
     return render_template(
         "datasets/history.html", dataset=dataset, operations=operations,
-        assessments=assessments,
+        assessments=assessments, audit_events=dataset_events(dataset.id, current_user.id),
     )
 
 

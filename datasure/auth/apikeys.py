@@ -35,6 +35,10 @@ def create_key(user: UserMixin, name: str) -> tuple[ApiKey, str]:
     raw = secrets.token_urlsafe(32)
     record = ApiKey(user_id=user.id, name=name, key_hash=hash_key(raw))
     db.session.add(record)
+
+    from ..audit import record_audit
+
+    record_audit("api_key_created", user.id, name=name)  # never store raw/hash
     db.session.commit()
     return record, raw
 
@@ -61,6 +65,10 @@ def revoke_key(user: UserMixin, key_id: int) -> ApiKey | None:
     if record is None or not record.is_active():
         return None if record is None else record
     record.revoked_at = datetime.now(timezone.utc)
+
+    from ..audit import record_audit
+
+    record_audit("api_key_revoked", user.id, key_id=key_id, name=record.name)
     db.session.commit()
     return record
 

@@ -54,4 +54,29 @@
   <div class="card-body text-secondary">No cleaning operations recorded yet.</div>
   {% endif %}
 </div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>Audit trail</strong></div>
+  {% if audit_events %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>When</th><th>Action</th><th>Details</th><th>Request</th></tr></thead>
+      <tbody>
+        {% for event in audit_events %}
+        <tr>
+          <td class="small">{{ event.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td><span class="badge text-bg-light">{{ event.action }}</span></td>
+          <td class="small">
+            {% for key, value in event.detail_json.items() %}{{ key }}=<code>{{ value }}</code> {% endfor %}
+          </td>
+          <td class="small text-secondary">{{ event.request_id or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-secondary">No audit events recorded for this dataset yet.</div>
+  {% endif %}
+</div>
 {% endblock %}

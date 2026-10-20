@@ -102,7 +102,11 @@ def create_rule():
 @login_required
 def delete_rule(rule_id: int):
     rule = _owned_rule(rule_id)
+    name, rule_type = rule.name, rule.rule_type
     db.session.delete(rule)
+    from ..audit import record_audit
+
+    record_audit("rule_deleted", current_user.id, name=name, rule_type=rule_type)
     db.session.commit()
     flash("Rule deleted.", "info")
     return redirect(url_for("rules.list_rules"))
