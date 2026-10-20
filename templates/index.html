@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Home · DataSure AI{% endblock %}
+{% block content %}
+<div class="row align-items-center g-5 py-4">
+  <div class="col-lg-7">
+    <h1 class="display-5 fw-bold">Assess your datasets <span class="text-primary">before</span> they cost you</h1>
+    <p class="lead text-secondary">
+      DataSure AI profiles CSV and Excel datasets for missingness, duplicates, type
+      inconsistencies, outliers, class imbalance and suspected target leakage —
+      then explains what it found and what to do about it.
+    </p>
+    <ul class="list-group list-group-flush mb-4">
+      <li class="list-group-item bg-transparent">✔ Transparent 5-dimension quality scoring (full formula disclosure)</li>
+      <li class="list-group-item bg-transparent">✔ Guided cleaning with previews — your original file is never modified</li>
+      <li class="list-group-item bg-transparent">✔ Downloadable assessment reports</li>
+      <li class="list-group-item bg-transparent">✔ Assessment history and dataset version tracking</li>
+    </ul>
+    <a class="btn btn-primary btn-lg me-2" href="{{ url_for('auth.login') }}">Log in</a>
+    <a class="btn btn-outline-primary btn-lg" href="{{ url_for('auth.register') }}">Create an account</a>
+    <p class="small text-secondary mt-3">Quality scores are documented heuristics — every formula and threshold is disclosed in the assessment view and reports.</p>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <h5 class="card-title">How an assessment works</h5>
+        <ol class="mb-0">
+          <li class="py-1">Upload a CSV, TSV or Excel dataset.</li>
+          <li class="py-1">The profiling engine measures missingness, duplicates, types, statistics, outliers and feature relationships.</li>
+          <li class="py-1">Deterministic rules turn measurements into issues and recommendations.</li>
+          <li class="py-1">You get scores with a full methodology breakdown, and can apply cleaning operations with a preview at every step.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

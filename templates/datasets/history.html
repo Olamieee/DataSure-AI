@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}History · {{ dataset.name }} · DataSure AI{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">History — {{ dataset.name }}</h1>
+<nav class="mb-3">
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">← Dataset overview</a>
+</nav>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>Assessments ({{ assessments | length }})</strong></div>
+  {% if assessments %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <thead class="table-light"><tr><th>When</th><th>Label</th><th>Score</th><th>Rows × Cols</th><th>Target</th><th></th></tr></thead>
+      <tbody>
+        {% for assessment in assessments %}
+        <tr>
+          <td class="small">{{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ assessment.label or '—' }}</td>
+          <td><span class="badge {{ 'text-bg-success' if assessment.quality_score >= 80 else ('text-bg-warning text-dark' if assessment.quality_score >= 60 else 'text-bg-danger') }}">{{ '%.1f'|format(assessment.quality_score) }}</span></td>
+          <td class="small">{{ assessment.row_count }} × {{ assessment.column_count }}</td>
+          <td><code class="small">{{ assessment.target_column or '—' }}</code></td>
+          <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('datasets.assessment', dataset_id=dataset.id, assessment_id=assessment.id) }}">Open</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-secondary">No assessments recorded yet.</div>
+  {% endif %}
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>Cleaning operations ({{ operations | length }})</strong></div>
+  {% if operations %}
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light"><tr><th>When</th><th>Operation</th><th>Rows</th><th>Columns</th><th>Cells changed</th></tr></thead>
+      <tbody>
+        {% for operation in operations %}
+        <tr>
+          <td class="small">{{ operation.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+          <td><code>{{ operation.operation }}</code> <span class="small text-secondary">{{ operation.params_json }}</span></td>
+          <td>{{ operation.rows_before }} → {{ operation.rows_after }}</td>
+          <td>{{ operation.columns_before }} → {{ operation.columns_after }}</td>
+          <td>{{ operation.cells_changed }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-secondary">No cleaning operations recorded yet.</div>
+  {% endif %}
+</div>
+{% endblock %}

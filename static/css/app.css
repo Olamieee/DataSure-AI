@@ -1,0 +1,7 @@
+/* DataSure AI application styles */
+body { min-height: 100vh; }
+.dataset-preview td { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.navbar .navbar-text { font-size: 0.9rem; }
+.card { border: 1px solid rgba(0,0,0,.06); }
+.list-group-item code { user-select: all; }
+footer { font-size: 0.85rem; }

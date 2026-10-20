@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Clean · {{ dataset.name }} · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">Cleaning workspace — {{ dataset.name }}</h1>
+    <p class="small text-secondary">
+      {{ df|length }} rows × {{ df.shape[1] }} columns · current version v{{ dataset.storage_version }}
+      {% if dataset.is_cleaned %}({{ dataset.cleaning_operations.count() }} operation(s) recorded){% endif %}
+    </p>
+  </div>
+  <div>
+    <a class="btn btn-outline-secondary btn-sm me-1" href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">← Overview</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('datasets.cleaning_history', dataset_id=dataset.id) }}">Cleaning history</a>
+  </div>
+</div>
+
+{% if suggestions %}
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>Suggested operations</strong>
+    <span class="small text-secondary">based on the current dataset, derived deterministically from the quality profile</span></div>
+  <div class="list-group list-group-flush">
+    {% for suggestion in suggestions %}
+    <div class="list-group-item d-flex justify-content-between align-items-center">
+      <div>
+        <code>{{ suggestion.operation }}</code> <span class="small">{{ suggestion.params }}</span>
+        <div class="small text-secondary">{{ suggestion.reason }}</div>
+      </div>
+      <form method="post" action="{{ url_for('datasets.clean_preview', dataset_id=dataset.id) }}">
+        <input type="hidden" name="csrf_token" value="">
+        <input type="hidden" name="operation" value="{{ suggestion.operation }}">
+        {% for key, value in suggestion.params.items() %}
+          {% if value is sequence and value is not string %}
+            {% for item in value %}<input type="hidden" name="columns" value="{{ item }}">{% endfor %}
+          {% else %}
+            <input type="hidden" name="param_{{ key }}" value="{{ value }}">
+          {% endif %}
+        {% endfor %}
+        <button class="btn btn-sm btn-outline-primary" type="submit">Preview</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>All cleaning operations</strong></div>
+  <div class="card-body">
+    {% for operation in operations %}
+    <form class="d-flex align-items-end gap-2 mb-3 border-bottom pb-3 flex-wrap"
+          method="post" action="{{ url_for('datasets.clean_preview', dataset_id=dataset.id) }}">
+      <div class="me-3" style="min-width: 220px">
+        <strong>{{ operation.label }}</strong>
+        <div class="small text-secondary">{{ operation.description }}</div>
+      </div>
+      <input type="hidden" name="operation" value="{{ operation.name }}">
+      {% for param in operation.params %}
+      <div class="mb-0 me-2">
+        {% if param.type == 'multi_column' %}
+          <select class="form-select form-select-sm" name="columns" multiple size="1" style="min-width:160px"
+                  aria-label="Columns for {{ operation.name }}" {% if param.required %}required{% endif %}>
+            {% for column in df.columns %}<option value="{{ column }}">{{ column }}</option>{% endfor %}
+          </select>
+        {% elif param.type == 'choice' %}
+          <select class="form-select form-select-sm" name="param_{{ param.name }}" aria-label="{{ param.name }}">
+            {% for choice in param.choices %}
+              <option value="{{ choice }}" {{ 'selected' if choice == param.default }}>{{ choice }}</option>
+            {% endfor %}
+          </select>
+        {% elif param.type == 'number' %}
+          <input class="form-control form-control-sm" style="width:90px" type="number" step="0.1"
+                 name="param_{{ param.name }}" value="{{ param.default }}" aria-label="{{ param.name }}">
+        {% else %}
+          <input class="form-control form-control-sm" style="width:120px" type="text"
+                 name="param_{{ param.name }}" aria-label="{{ param.name }}">
+        {% endif %}
+        <div class="form-text">{{ param.name }}</div>
+      </div>
+      {% endfor %}
+      <button class="btn btn-sm btn-outline-primary" type="submit">Preview changes</button>
+    </form>
+    {% else %}
+    <p class="text-secondary mb-0">No operations registered.</p>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="alert alert-warning small">
+  <strong>Destructive operations:</strong> dropping rows/columns or converting types removes
+  data. Every change becomes a <em>new stored version</em> — the original upload is always preserved,
+  and every operation is logged in the cleaning history.
+</div>
+{% endblock %}

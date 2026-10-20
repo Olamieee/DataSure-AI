@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Assessment · {{ dataset.name }} · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h3 mb-1">Assessment #{{ assessment.id }} — {{ dataset.name }}</h1>
+    <p class="small text-secondary mb-0">
+      {{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }} UTC
+      · {{ assessment.row_count }} rows × {{ assessment.column_count }} columns
+      · completed in {{ assessment.duration_ms }} ms
+      {% if assessment.label %} · label: “{{ assessment.label }}”{% endif %}
+      {% if assessment.target_column %} · target: <code>{{ assessment.target_column }}</code>{% endif %}
+    </p>
+  </div>
+  <a class="btn btn-outline-primary" href="{{ url_for('datasets.assessment_report', dataset_id=dataset.id, assessment_id=assessment.id) }}">Download report</a>
+</div>
+
+<nav class="mb-4">
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">← Dataset overview</a>
+</nav>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-4">
+    <div class="card text-center shadow-sm">
+      <div class="card-body">
+        <div class="display-4 fw-bold
+          {{ 'text-success' if assessment.quality_score >= 80 else ('text-warning text-dark' if assessment.quality_score >= 60 else 'text-danger') }}">
+          {{ '%.1f'|format(assessment.quality_score) }}
+        </div>
+        <div class="text-secondary">overall quality score / 100</div>
+      </div>
+    </div>
+    <div class="alert alert-light small mt-3">
+      {{ assessment.scores_json.disclaimer if assessment.scores_json else '' }}
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Dimension scores</strong></div>
+      <div class="card-body"><canvas id="scoresChart" height="120"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Metric definitions</strong></div>
+      <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr><th>Dimension</th><th>Score</th><th>Weight</th><th>Formula</th></tr>
+        </thead>
+        <tbody>
+        {% for name, dimension in assessment.scores_json.dimensions.items() %}
+          <tr>
+            <td class="fw-semibold text-capitalize">{{ name }}</td>
+            <td>{{ dimension.score }}</td>
+            <td>{{ (assessment.scores_json.weights[name] * 100)|int }}%</td>
+            <td class="small"><code>{{ dimension.formula }}</code></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Penalty breakdown</strong></div>
+      <div class="card-body p-3">
+        {% for name, dimension in assessment.scores_json.dimensions.items() %}
+          {% if dimension.breakdown %}
+            <p class="mb-1 fw-semibold text-capitalize small">{{ name }} ({{ dimension.score }})</p>
+            <ul class="small text-secondary mb-2">
+              {% for item in dimension.breakdown %}<li>{{ item.cause }} → −{{ item.penalty }} points</li>{% endfor %}
+              {% if not dimension.breakdown %}<li>No penalties.</li>{% endif %}
+            </ul>
+          {% endif %}
+          {% if dimension.inputs and dimension.formula %}
+            {% for key, value in dimension.inputs.items() %}
+              <span class="badge text-bg-light me-1 mb-1">{{ key }}: {{ value }}</span>
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 class="h4">Detected issues</h2>
+{% if assessment.issues_json %}
+<div class="list-group mb-4 shadow-sm">
+  {% for issue in assessment.issues_json %}
+    <div class="list-group-item">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <span class="badge me-2
+            {{ 'text-bg-danger' if issue.severity == 'critical' else ('text-bg-warning text-dark' if issue.severity == 'warning' else 'text-bg-secondary') }}">
+            {{ issue.severity }}
+          </span>
+          <strong>{{ issue.kind }}</strong>
+          <p class="mb-1 mt-1">{{ issue.message }}</p>
+          <p class="mb-0 small text-success">Recommendation: {{ issue.recommendation }}</p>
+        </div>
+        {% if issue.columns %}
+          <div class="text-end small text-secondary">{% for column in issue.columns[:4] %}<code class="me-1">{{ column }}</code>{% endfor %}{% if issue.columns|length > 4 %}+{{ issue.columns|length - 4 }}{% endif %}</div>
+        {% endif %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-success">No quality issues exceeded the reporting thresholds.</div>
+{% endif %}
+
+<h2 class="h4 mb-3">Visual analytics</h2>
+<div class="row g-4">
+  <div class="col-lg-6"><div class="card shadow-sm"><div class="card-body"><canvas id="missingChart"></canvas></div></div>
+  </div>
+  <div class="col-lg-6"><div class="card shadow-sm"><div class="card-body"><canvas id="missingnessChart"></canvas></div></div>
+  </div>
+</div>
+<div class="row g-4 mt-0">
+  <div class="col-lg-6"><div class="card shadow-sm"><div class="card-body"><canvas id="typesChart"></canvas></div></div></div>
+  <div class="col-lg-6"><div class="card shadow-sm"><div class="card-body"><canvas id="outliersChart"></canvas></div></div></div>
+</div>
+
+<div class="card shadow-sm mt-4">
+  <div class="card-header bg-white"><strong>Column statistics</strong>
+    <span class="small text-secondary"> (hover a column name for metadata)</span></div>
+  <div class="table-responsive">
+    <table class="table table-sm small mb-0">
+      <thead class="table-light">
+        <tr><th>Column</th><th>Kind</th><th>Missing %</th><th>Unique</th><th>Mean</th><th>Std</th><th>Min</th><th>Max</th><th>IQR outliers</th><th>Skew</th></tr>
+      </thead>
+      <tbody>
+      {% for column in assessment.profile_json.columns %}
+        <tr title="dtype={{ column.pandas_dtype }}">
+          <td class="fw-semibold">{{ column.name }}</td>
+          <td>{{ column.kind }}</td>
+          <td>{{ '%.1f'|format(column.missing_pct) }}</td>
+          <td>{{ column.unique }}</td>
+          <td>{{ (column.stats.mean if column.stats and column.stats.mean is not none) or '—' }}</td>
+          <td>{{ (column.stats.std if column.stats and column.stats.std is not none) or '—' }}</td>
+          <td>{{ (column.stats.min if column.stats and column.stats.min is not none) or '—' }}</td>
+          <td>{{ (column.stats.max if column.stats and column.stats.max is not none) or '—' }}</td>
+          <td>{{ column.outliers.iqr_count if column.outliers else '—' }}</td>
+          <td>{{ (column.skew if column.skew is not none else '—') }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    const scores = {{ assessment.scores_json | tojson }};
+    const profile = {{ assessment.profile_json | tojson }};
+    if (!scores || !profile) return;
+    const labelStyle = {color: '#495057'};
+
+    // Dimension bar chart
+    const dimCanvas = document.getElementById('scoresChart');
+    if (dimCanvas) {
+      const names = Object.keys(scores.dimensions || {});
+      new Chart(dimCanvas, {
+        type: 'bar',
+        data: {
+          labels: names.map(n => n.charAt(0).toUpperCase() + n.slice(1)),
+          datasets: [{label: 'Score', data: names.map(n => scores.dimensions[n].score),
+                      backgroundColor: ['#198754dd','#3d8bfdff','#fd7e14','#ffc107','#6f42c1'],
+                      borderWidth: 0}]
+        },
+        options: {indexAxis: 'y', scales: {x: {min: 0, max: 100, ticks: {color: '#495057'}}},
+                  plugins: {legend: {display: false}}}
+      });
+    }
+
+    const columns = (profile.columns || []);
+
+    // Missing values by column (top 10)
+    const missingCanvas = document.getElementById('missingChart');
+    if (missingCanvas) {
+      const worst = columns.filter(c => c.missing > 0).sort((a, b) => b.missing_pct - a.missing_pct).slice(0, 10);
+      new Chart(missingCanvas, {
+        type: 'bar',
+        data: {labels: worst.map(c => c.name),
+               datasets: [{label: 'Missing %', data: worst.map(c => c.missing_pct),
+                           backgroundColor: 'rgba(220,53,69,.6)'}]},
+        options: {plugins: {legend: {display: false}}, title: {display: true, text: 'Missing values by column (top 10)'},
+                  scales: {y: {beginAtZero: true, ticks: {color: '#495057'}, title: {display: true, text: '% missing'}}},
+                  x: {ticks: {color: '#495057', maxRotation: 45, minRotation: 30}}}
+      });
+    }
+
+    // Column kind distribution
+    const typesCanvas = document.getElementById('typesChart');
+    if (typesCanvas) {
+      const kinds = {};
+      columns.forEach(c => { kinds[c.kind] = (kinds[c.kind] || 0) + 1; });
+      new Chart(typesCanvas, {
+        type: 'pie',
+        data: {labels: Object.keys(kinds), datasets: [{data: Object.values(kinds)}]},
+        options: {plugins: {title: {display: true, text: 'Column types'}, legend: {position: 'bottom'}}}
+      });
+    }
+
+    // Class imbalance / top categorical shares, if available
+    const missingAllCanvas = document.getElementById('missingnessChart');
+    if (missingAllCanvas) {
+      const cats = columns.filter(c => c.top_values && c.top_values.length >= 2).slice(0, 1);
+      if (cats.length) {
+        const c = cats[0];
+        new Chart(missingAllCanvas, {
+          type: 'bar',
+          data: {labels: c.top_values.map(v => v.value),
+                 datasets: [{label: 'Count', data: c.top_values.map(v => v.count),
+                             backgroundColor: 'rgba(25,135,84,.6)'}]},
+          options: {plugins: {title: {display: true, text: 'Category distribution: ' + c.name}, legend: {display: false}},
+                    scales: {y: {beginAtZero: true, ticks: {color: '#495057'}}}}
+        });
+      } else {
+        missingAllCanvas.closest('.card').style.display = 'none';
+      }
+    }
+
+    // Outliers per numeric column
+    const outliersCanvas = document.getElementById('outliersChart');
+    if (outliersCanvas) {
+      const numeric = columns.filter(c => c.outliers && c.outliers.iqr_count > 0)
+                             .sort((a, b) => b.outliers.iqr_count - a.outliers.iqr_count).slice(0, 10);
+      new Chart(outliersCanvas, {
+        type: 'bar',
+        data: {labels: numeric.map(c => c.name),
+               datasets: [{label: 'IQR outliers', data: numeric.map(c => c.outliers.iqr_count),
+                           backgroundColor: 'rgba(253,126,20,.6)'}]},
+        options: {plugins: {title: {display: true, text: 'Potential outliers per numeric column'}, legend: {display: false}},
+                  scales: {y: {beginAtZero: true, ticks: {color: '#495057'}}}}
+      });
+    }
+  })();
+</script>
+{% endblock %}

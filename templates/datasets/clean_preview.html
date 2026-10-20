@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Preview cleaning · {{ dataset.name }} · DataSure AI{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Preview: <code>{{ operation }}</code></h1>
+<p class="text-secondary">Dataset: {{ dataset.name }} — this is a dry run; nothing has been changed yet.</p>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="h5 mb-0">{{ rows_before }} → <strong>{{ rows_after }}</strong></div>
+    <div class="text-secondary small">rows</div></div></div></div>
+  <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="h5 mb-0">{{ columns_before }} → <strong>{{ columns_after }}</strong></div>
+    <div class="text-secondary small">columns</div></div></div></div>
+  <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="h5 mb-0 {% if rows_removed > 0 %}text-danger{% else %}text-success{% endif %}">{{ rows_removed }}</div>
+    <div class="text-secondary small">rows removed</div></div></div></div>
+  <div class="col-md-3"><div class="card text-center shadow-sm"><div class="card-body">
+    <div class="h5 mb-0">{{ cells_changed if cells_changed >= 0 else 'many' }}</div>
+    <div class="text-secondary small">cells changed</div></div></div></div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>Resulting data (first {{ preview|length - 1 }} rows)</strong></div>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered small mb-0">
+      <thead class="table-light">
+        <tr>{% for cell in preview[0] %}<th>{{ cell }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in preview[1:] %}
+        <tr>{% for cell in row %}<td>{{ '' if cell is none else cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="d-flex gap-2 mb-5">
+  <a class="btn btn-outline-secondary" href="{{ url_for('datasets.clean', dataset_id=dataset.id) }}">← Cancel</a>
+  <form method="post" action="{{ url_for('datasets.clean_apply', dataset_id=dataset.id) }}"
+        onsubmit="return confirm('Apply this cleaning operation? A new dataset version will be stored; the original remains preserved.')">
+    <input type="hidden" name="operation" value="{{ operation }}">
+    {% for key, value in params.items() %}
+      {% if value is sequence and value is not string %}
+        {% for item in value %}<input type="hidden" name="columns" value="{{ item }}">{% endfor %}
+      {% else %}
+        <input type="hidden" name="param_{{ key }}" value="{{ value }}">
+      {% endif %}
+    {% endfor %}
+    <button class="btn btn-primary" type="submit">Apply and save as new version</button>
+  </form>
+</div>
+{% endblock %}

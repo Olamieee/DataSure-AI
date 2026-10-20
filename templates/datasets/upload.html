@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Upload · DataSure AI{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <h1 class="h3 mb-4">Upload a dataset</h1>
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <form method="post" enctype="multipart/form-data" id="upload-form">
+          <div class="mb-3">
+            <label class="form-label" for="file">Dataset file</label>
+            <input class="form-control" type="file" id="file" name="file"
+                   accept=".csv,.tsv,.xlsx,.xls" required>
+            <div class="form-text">
+              Supported: CSV, TSV, XLSX, XLS · Maximum size {{ max_upload_mb }} MB ·
+              Up to 500,000 rows / 400 columns · Non-UTF8 files are attempted
+              with automatic encoding fallback.
+            </div>
+          </div>
+          <button class="btn btn-primary" type="submit" id="upload-btn">Upload</button>
+          <span class="spinner-border spinner-border-sm text-primary ms-3 d-none" id="upload-spinner" role="status" aria-hidden="true"></span>
+        </form>
+      </div>
+    </div>
+    <div class="alert alert-light mt-4 small">
+      <strong>Privacy:</strong> uploaded files are stored under your account only and are
+      never visible to other users. Filenames are sanitised for display and replaced by
+      server-generated names on disk.
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const form = document.getElementById('upload-form');
+  form.addEventListener('submit', function () {
+    document.getElementById('upload-btn').disabled = true;
+    document.getElementById('upload-spinner').classList.remove('d-none');
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DataSure AI report — {{ dataset.name }} (assessment #{{ assessment.id }})</title>
+<style>
+  body { font-family: "Segoe UI", Arial, sans-serif; margin: 24px auto; max-width: 900px; color: #212529; }
+  h1, h2 { color: #212529; } h1 { font-size: 26px; } h2 { font-size: 19px; margin-top: 32px; border-bottom: 2px solid #e9ecef; padding-bottom: 6px; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; }
+  th, td { border: 1px solid #dee2e6; padding: 6px 8px; text-align: left; }
+  th { background: #f8f9fa; }
+  img { max-width: 100%; margin: 8px 0; }
+  .badge-critical { background: #dc3545; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+  .badge-warning { background: #ffc107; color: #212529; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+  .badge-info { background: #6c757d; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+  .score { font-size: 44px; font-weight: 700; }
+  .disclaimer { background: #f8f9fa; border-left: 4px solid #0d6efd; padding: 10px 14px; font-size: 13px; }
+  .muted { color: #6c757d; font-size: 12px; }
+</style>
+</head>
+<body>
+<h1>DataSure AI — Dataset Quality Report</h1>
+<p>
+  Dataset: <strong>{{ dataset.name }}</strong> ({{ dataset.extension }}, v{{ dataset.storage_version }})<br>
+  SHA-256: <code>{{ dataset.sha256 }}</code><br>
+  Assessment: <strong>#{{ assessment.id }}</strong>, generated {{ assessment.created_at.strftime('%Y-%m-%d %H:%M UTC') }}<br>
+  Rows × Columns at assessment time: {{ assessment.row_count }} × {{ assessment.column_count }}
+  {% if assessment.target_column %}<br>Target column: <code>{{ assessment.target_column }}</code>{% endif %}
+  <br><span class="muted">Report generated for {{ user.username }} at {{ generated_at }}</span>
+</p>
+
+<h2>Overall quality score</h2>
+<div class="score" style="color: {{ '#198754' if assessment.quality_score >= 80 else ('#fd7e14' if assessment.quality_score >= 60 else '#dc3545') }}">
+  {{ '%.1f' | format(assessment.quality_score) }} / 100
+</div>
+<p class="disclaimer">{{ assessment.scores_json.disclaimer if assessment.scores_json else '' }}
+Weights: completeness 30% · uniqueness 15% · validity 25% · consistency 20% · distribution 10%.</p>
+
+<h2>Dimension scores</h2>
+<table>
+  <tr><th>Dimension</th><th>Score / 100</th><th>Formula</th><th>Penalties applied</th></tr>
+  {% for name, dimension in assessment.scores_json.dimensions.items() %}
+  <tr>
+    <td>{{ name }}</td><td>{{ dimension.score }}</td><td><code>{{ dimension.formula }}</code></td>
+    <td>{% for item in dimension.breakdown %}{{ item.cause }} (−{{ item.penalty }}){% if not loop.last %}; {% endif %}{% else %}—{% endfor %}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h2>Detected issues ({{ assessment.issues_json | length }})</h2>
+{% for issue in assessment.issues_json %}
+<p>
+  <span class="badge-{{ 'critical' if issue.severity == 'critical' else ('warning' if issue.severity == 'warning' else 'info') }}">{{ issue.severity }}</span>
+  <strong>{{ issue.kind }}</strong> — {{ issue.message }}
+  {% if issue.columns %}<br><span class="muted">columns: {{ issue.columns | join(', ') }}</span>{% endif %}
+  <br><em>Recommendation:</em> {{ issue.recommendation }}
+</p>
+{% endfor %}
+
+<h2>Visual analytics</h2>
+{% for key, uri in charts.items() %}
+<img src="{{ uri }}" alt="{{ key }}">
+{% endfor %}
+
+<h2>Column statistics</h2>
+<table>
+  <tr><th>Column</th><th>Kind</th><th>dtype</th><th>Missing %</th><th>Unique</th><th>Mean</th><th>Std</th><th>Min</th><th>Max</th><th>IQR outliers</th></tr>
+  {% for column in assessment.profile_json.columns %}
+  <tr>
+    <td>{{ column.name }}</td><td>{{ column.kind }}</td><td><code>{{ column.pandas_dtype }}</code></td>
+    <td>{{ column.missing_pct }}</td><td>{{ column.unique }}</td>
+    <td>{{ column.stats.mean if column.stats and column.stats.mean is not none else '—' }}</td>
+    <td>{{ column.stats.std if column.stats and column.stats.std is not none else '—' }}</td>
+    <td>{{ column.stats.min if column.stats and column.stats.min is not none else '—' }}</td>
+    <td>{{ column.stats.max if column.stats and column.stats.max is not none else '—' }}</td>
+    <td>{{ column.outliers.iqr_count if column.outliers else '—' }}</td>
+  </tr>
+  {% endfor %}
+</table>
+
+<h2>Cleaning history</h2>
+{% if operations %}
+<table>
+  <tr><th>When</th><th>Operation</th><th>Rows</th><th>Columns</th><th>Cells changed</th></tr>
+  {% for op in operations %}
+  <tr>
+    <td>{{ op.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+    <td>{{ op.operation }} <span class="muted">{{ op.params_json }}</span></td>
+    <td>{{ op.rows_before }} → {{ op.rows_after }}</td>
+    <td>{{ op.columns_before }} → {{ op.columns_after }}</td>
+    <td>{{ op.cells_changed }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<p class="muted">No cleaning operations recorded for this dataset.</p>
+{% endif %}
+
+<p class="muted">
+  DataSure AI — heuristic dataset quality assessment. Scores are computed from the
+  documented formulas above and are not scientifically validated measures of data quality.
+</p>
+</body>
+</html>

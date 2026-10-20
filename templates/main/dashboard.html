@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Your datasets</h1>
+  <a class="btn btn-primary" href="{{ url_for('datasets.upload') }}">Upload dataset</a>
+</div>
+{% if datasets %}
+<div class="table-responsive">
+  <table class="table table-hover align-middle bg-white shadow-sm">
+    <thead>
+      <tr>
+        <th>Dataset</th><th>Rows</th><th>Columns</th><th>Kind</th>
+        <th>Latest score</th><th>Version</th><th>Uploaded</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for dataset in datasets %}
+      <tr>
+        <td>
+          <a class="fw-semibold" href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">{{ dataset.name }}</a>
+          <div class="small text-secondary">{{ dataset.sha256[:12] }}…</div>
+        </td>
+        <td>{{ dataset.row_count or '—' }}</td>
+        <td>{{ dataset.column_count or '—' }}</td>
+        <td><span class="badge text-bg-secondary">{{ dataset.extension }}</span></td>
+        <td>
+          {% set score = latest_scores[dataset.id] %}
+          {% if score is not none %}
+            <span class="badge {{ 'text-bg-success' if score >= 80 else ('text-bg-warning text-dark' if score >= 60 else 'text-bg-danger') }}">{{ '%.1f'|format(score) }}</span>
+          {% else %}
+            <span class="text-secondary">not assessed</span>
+          {% endif %}
+        </td>
+        <td>v{{ dataset.storage_version }}{% if dataset.is_cleaned %} <span class="badge text-bg-info">cleaned</span>{% endif %}</td>
+        <td class="small text-secondary">{{ dataset.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td class="text-end">
+          <a class="btn btn-sm btn-outline-primary" href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">Open</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="card shadow-sm">
+  <div class="card-body text-center py-5">
+    <p class="mb-2">No datasets yet.</p>
+    <a class="btn btn-primary" href="{{ url_for('datasets.upload') }}">Upload your first dataset</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

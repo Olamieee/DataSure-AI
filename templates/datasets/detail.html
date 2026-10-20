@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}{{ dataset.name }} · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ dataset.name }}
+      {% if dataset.is_cleaned %}<span class="badge text-bg-info">cleaned v{{ dataset.storage_version }}</span>{% endif %}
+    </h1>
+    <p class="text-secondary small mb-0">
+      {% if dataset.row_count %}{{ dataset.row_count }} rows × {{ dataset.column_count }} columns{% endif %}
+      · {{ dataset.extension }} · {{ (dataset.size_bytes / 1024)|round(1) }} KB
+      · uploaded {{ dataset.created_at.strftime('%Y-%m-%d %H:%M') }}
+    </p>
+  </div>
+  <div class="btn-group">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('datasets.download', dataset_id=dataset.id) }}">Download current file</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('datasets.cleaning_history', dataset_id=dataset.id) }}">History</a>
+    <form method="post" action="{{ url_for('datasets.delete', dataset_id=dataset.id) }}"
+          onsubmit="return confirm('Delete this dataset and all its assessments? This cannot be undone.')">
+      <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
+    </form>
+  </div>
+</div>
+
+{% if latest_assessment %}
+<div class="alert {{ 'alert-success' if latest_assessment.quality_score >= 80 else ('alert-warning' if latest_assessment.quality_score >= 60 else 'alert-danger') }} d-flex justify-content-between align-items-center">
+  <div>
+    <strong>Latest quality score: {{ '%.1f'|format(latest_assessment.quality_score) }} / 100</strong>
+    <span class="text-secondary small ms-2">assessed {{ latest_assessment.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+  </div>
+  <a class="btn btn-sm btn-outline-dark" href="{{ url_for('datasets.assessment', dataset_id=dataset.id, assessment_id=latest_assessment.id) }}">View full assessment</a>
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white"><strong>Schema</strong></div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light"><tr><th>Column</th><th>Pandas dtype</th><th>Kind</th></tr></thead>
+          <tbody>
+          {% for column in schema %}
+            <tr>
+              <td class="fw-semibold">{{ column.name }}</td>
+              <td><code>{{ column.dtype }}</code></td>
+              <td><span class="badge text-bg-light">{{ column.kind }}</span></td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white"><strong>Run an assessment</strong></div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('datasets.assess', dataset_id=dataset.id) }}">
+          <div class="mb-2">
+            <label class="form-label" for="target_column">Prediction target (optional)</label>
+            <select class="form-select" id="target_column" name="target_column">
+              <option value="">— no target —</option>
+              {% if schema %}{% for column in schema %}
+                <option value="{{ column.name }}">{{ column.name }}</option>
+              {% endfor %}{% endif %}
+            </select>
+            <div class="form-text">Selecting a target enables leakage checks and imbalance detection.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="label">Assessment label (optional)</label>
+            <input class="form-control" id="label" name="label" placeholder="e.g. after import fixes">
+          </div>
+          <button class="btn btn-primary" type="submit">Run assessment</button>
+        </form>
+      </div>
+    </div>
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white"><strong>Cleaning</strong></div>
+      <div class="card-body py-3">
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('datasets.clean', dataset_id=dataset.id) }}">Open cleaning workspace</a>
+        <p class="small text-secondary mt-2 mb-0">Cleaned files are saved as a new version; the original upload is preserved.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if preview %}
+<div class="card shadow-sm">
+  <div class="card-header bg-white"><strong>Preview (first {{ preview|length - 1 }} rows)</strong></div>
+  <div class="table-responsive">
+    <table class="table table-sm table-bordered small mb-0 dataset-preview">
+      <thead class="table-light">
+        <tr>{% for cell in preview[0] %}<th>{{ cell }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for row in preview[1:] %}
+        <tr>{% for cell in row %}<td>{{ '' if cell is none else cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

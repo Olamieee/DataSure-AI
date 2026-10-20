@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}History · DataSure AI{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Assessment history</h1>
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Your datasets</strong></div>
+      <div class="list-group list-group-flush">
+        {% for dataset in datasets %}
+        <a class="list-group-item list-group-item-action {{ 'active' if selected and dataset.id == selected.id }}"
+           href="{{ url_for('datasets.history_all', dataset_id=dataset.id) }}">
+          {{ dataset.name }} <span class="small">v{{ dataset.storage_version }}</span>
+        </a>
+        {% else %}
+        <div class="list-group-item text-secondary">No datasets yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    {% if selected %}
+    <div class="card shadow-sm">
+      <div class="card-header bg-white">
+        <strong>Assessments — {{ selected.name }}</strong>
+        <a class="btn btn-sm btn-outline-secondary float-end" href="{{ url_for('datasets.cleaning_history', dataset_id=selected.id) }}">Cleaning history</a>
+      </div>
+      {% if assessments %}
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 align-middle">
+          <thead class="table-light">
+            <tr><th>#</th><th>When</th><th>Label</th><th>Score</th><th>Rows</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for assessment in assessments %}
+            <tr>
+              <td>{{ assessment.id }}</td>
+              <td class="small">{{ assessment.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+              <td>{{ assessment.label or '—' }}</td>
+              <td><span class="badge {{ 'text-bg-success' if assessment.quality_score >= 80 else ('text-bg-warning text-dark' if assessment.quality_score >= 60 else 'text-bg-danger') }}">{{ '%.1f'|format(assessment.quality_score) }}</span></td>
+              <td>{{ assessment.row_count }}</td>
+              <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('datasets.assessment', dataset_id=selected.id, assessment_id=assessment.id) }}">Open</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-secondary">No assessments yet for this dataset.</div>
+      {% endif %}
+    </div>
+    {% if assessments|length >= 2 %}
+    <div class="card shadow-sm mt-4">
+      <div class="card-header bg-white"><strong>Score trend</strong></div>
+      <div class="card-body"><canvas id="trendChart" height="90"></canvas></div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="alert alert-info">Upload a dataset to start building assessment history.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  {% if assessments|length >= 2 and selected %}
+    const trend = {{ assessments | map(attribute='quality_score') | list | tojson }};
+    const ctx = document.getElementById('trendChart');
+    if (ctx && trend.length) {
+      // oldest → newest left to right
+      const ordered = trend.slice().reverse();
+      new Chart(ctx, {
+        type: 'line',
+        data: {labels: ordered.map((_, i) => 'Assessment ' + (i + 1)),
+               datasets: [{label: 'Quality score', data: ordered, fill: false,
+                           borderColor: '#0d6efd', tension: 0.2}]},
+        options: {scales: {y: {min: 0, max: 100, ticks: {color: '#495057'}}},
+                  plugins: {legend: false}}
+      });
+    }
+  {% endif %}
+</script>
+{% endblock %}
