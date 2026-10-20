@@ -6,6 +6,7 @@ failures, while never letting malformed input crash the service.
 from __future__ import annotations
 
 import io
+import os
 from pathlib import Path
 
 import pandas as pd
@@ -42,6 +43,14 @@ def load_dataframe(path: Path, extension: str, max_rows: int, max_columns: int) 
     size_ok = path.stat().st_size > 0
     if not size_ok:
         raise DatasetParseError("The uploaded file is empty (0 bytes).", hint="Export a non-empty file.")
+
+    if extension in {".csv", ".tsv"} and path.stat().st_size > CHUNKED_SCAN_THRESHOLD_BYTES:
+        # Large files are scanned incrementally first: row/column limits are
+        # enforced while reading, so an oversized file is rejected without
+        # ever materialising fully. The final parse below stays identical
+        # to small files (full-frame dtype inference).
+        _scan_csv_limits(path, ".tsv" if extension == ".tsv" else ".csv",
+                         max_rows, max_columns)
 
     try:
         if extension in {".csv", ".tsv"}:
@@ -93,6 +102,51 @@ def _load_csv(path: Path, delimiter: str | None = None) -> pd.DataFrame:
 
 
 _huge = 10**9  # sentinel meaning "no row/column limit inline"
+
+# Files above this size are limit-scanned incrementally before the full parse
+# (see load_dataframe). Configurable so tests can force the streaming path.
+CHUNKED_SCAN_THRESHOLD_BYTES = int(
+    os.environ.get("DATASURE_CHUNKED_SCAN_BYTES", str(5 * 1024 * 1024))
+)
+SCAN_CHUNK_ROWS = 50_000
+
+
+def _scan_csv_limits(path: Path, ext: str, max_rows: int, max_columns: int) -> None:
+    """Stream a large CSV/TSV in bounded chunks to enforce shape limits early.
+
+    Chunks are counted and discarded, so memory stays bounded no matter how
+    oversized the file is. Quoted fields with embedded newlines are handled
+    correctly because parsing is left to pandas, not line counting. Column
+    counts come from the first chunk's header.
+    """
+    delimiter = "\t" if ext == ".tsv" else None
+    read_kwargs: dict = {"skip_blank_lines": True}
+    if delimiter is not None:
+        read_kwargs["sep"] = delimiter
+    total_rows = 0
+    header_columns = 0
+    try:
+        with pd.read_csv(path, encoding="utf-8-sig", chunksize=SCAN_CHUNK_ROWS,
+                         dtype=str, **read_kwargs) as reader:
+            for chunk in reader:
+                if header_columns == 0:
+                    header_columns = int(chunk.shape[1])
+                    if header_columns > max_columns and max_columns != _huge:
+                        raise DatasetParseError(
+                            f"The dataset has {header_columns:,} columns, exceeding "
+                            f"the platform limit of {max_columns:,}.")
+                total_rows += int(len(chunk))
+                if total_rows > max_rows:
+                    raise DatasetParseError(
+                        f"The dataset has more than {max_rows:,} rows, exceeding the "
+                        f"platform limit of {max_rows:,}. Split the file or export "
+                        "fewer rows before uploading.")
+    except DatasetParseError:
+        raise
+    except (pd.errors.ParserError, UnicodeDecodeError, ValueError, OSError):
+        # The scan is advisory: if it cannot parse the file, fall through and
+        # let the full loader produce its usual precise error message.
+        return
 
 
 def _validate_shape(df: pd.DataFrame, max_rows: int, max_columns: int) -> None:
