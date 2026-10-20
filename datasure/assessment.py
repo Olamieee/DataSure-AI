@@ -37,7 +37,9 @@ def run_assessment(dataset: Dataset, *, target_column: str | None = None,
         current_app.config["MAX_COLUMNS"],
     )
 
-    profile = profile_dataset(df)
+    profile = profile_dataset(
+        df, time_budget_seconds=current_app.config.get("PROFILE_TIME_BUDGET_SECONDS")
+    )
     leakage = analyse_target_leakage(df, target_column)
     strong_pairs, _all_pairs = numeric_correlations(df)
     if strong_pairs:

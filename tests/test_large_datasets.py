@@ -9,6 +9,7 @@ import pytest
 
 from datasure.datasets import ingest
 from datasure.datasets.ingest import DatasetParseError, load_dataframe
+from datasure.profiling.profile import ProfilingTimeout, profile_dataset
 
 
 @pytest.fixture()
@@ -83,7 +84,50 @@ def test_web_upload_healthy_large_file_succeeds(app, logged_in_user, monkeypatch
     resp = logged_in_user["client"].post(
         "/datasets/upload",
         data={"file": (io.BytesIO(lines), "fine.csv")},
-        content_type="multipart/form-data",
-        follow_redirects=False,
+        content_type="multipart/form-data", follow_redirects=False,
     )
     assert resp.status_code == 302
+
+
+# ------------------------------------------------------------------ time budget
+def _wide_frame(columns: int = 40, rows: int = 200) -> pd.DataFrame:
+    return pd.DataFrame({f"c{i}": range(rows) for i in range(columns)})
+
+
+def test_profiling_time_budget_aborts():
+    with pytest.raises(ProfilingTimeout, match="budget"):
+        # zero budget always trips at the first phase boundary
+        profile_dataset(_wide_frame(), time_budget_seconds=0.0)
+
+
+def test_profiling_without_budget_completes():
+    profile = profile_dataset(_wide_frame(), time_budget_seconds=None)
+    assert profile["overview"]["columns"] == 40
+    assert len(profile["columns"]) == 40
+    assert profile["missingness"] is not None
+
+
+def test_generous_budget_passes():
+    profile = profile_dataset(_wide_frame(), time_budget_seconds=60.0)
+    assert profile["overview"]["rows"] == 200
+
+
+def test_config_has_default_budget(app):
+    with app.app_context():
+        from flask import current_app
+        assert current_app.config["PROFILE_TIME_BUDGET_SECONDS"] >= 30
+
+
+def test_web_assess_reports_timeout(app, logged_in_user):
+    client = logged_in_user["client"]
+    resp = client.post(
+        "/datasets/upload",
+        data={"file": (io.BytesIO(b"a,b\n1,2\n3,4\n"), "budget.csv")},
+        content_type="multipart/form-data", follow_redirects=False,
+    )
+    dataset_id = int(resp.headers["Location"].rstrip("/").rsplit("/", 1)[-1])
+    app.config["PROFILE_TIME_BUDGET_SECONDS"] = 0.0
+    resp = client.post(f"/datasets/{dataset_id}/assess", data={},
+                       follow_redirects=True)
+    page = resp.data.decode("utf-8")
+    assert "Analysis stopped" in page and "budget" in page

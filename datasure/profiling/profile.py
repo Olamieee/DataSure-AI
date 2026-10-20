@@ -8,6 +8,7 @@ judgement - downstream modules (issues, scoring) turn measurements into advice.
 from __future__ import annotations
 
 import math
+import time
 from datetime import datetime, timezone
 
 import numpy as np
@@ -22,8 +23,30 @@ SUSPICIOUS_SKEW = 3.0
 STRING_DATE_PATTERN_MIN = 0.60    # fraction of cells that must look like dates
 
 
-def profile_dataset(df: pd.DataFrame) -> dict:
-    """Build a complete JSON-ready profile snapshot of `df`."""
+class ProfilingTimeout(RuntimeError):
+    """Raised when profiling exceeds its wall-time budget."""
+
+
+def profile_dataset(df: pd.DataFrame, time_budget_seconds: float | None = None) -> dict:
+    """Build a complete JSON-ready profile snapshot of `df`.
+
+    Args:
+        time_budget_seconds: optional hard wall-time budget. Profiling checks
+            the elapsed time at every phase boundary and aborts with
+            ProfilingTimeout when exceeded, so a pathological dataset cannot
+            monopolise a worker. `None` disables the budget entirely.
+    """
+    started = time.perf_counter()
+
+    def _check_budget(phase: str) -> None:
+        if time_budget_seconds is None:
+            return
+        elapsed = time.perf_counter() - started
+        if elapsed > time_budget_seconds:
+            raise ProfilingTimeout(
+                f"Analysis stopped after {elapsed:.1f}s exceeded the "
+                f"{time_budget_seconds:.1f}s budget during {phase}.")
+
     rows, columns = map(int, df.shape)
     profile: dict = {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -33,12 +56,23 @@ def profile_dataset(df: pd.DataFrame) -> dict:
             "cells": rows * columns,
             "memory_bytes": int(df.memory_usage(deep=True).sum()),
         },
-        "columns": [analyse_column(column, df[column]) for column in df.columns],
-        "missingness": analyse_missingness(df),
-        "duplicates": analyse_duplicates(df),
-        "schema": analyse_schema(df),
-        "cardinality": analyse_cardinality(df),
+        "columns": [],
+        "missingness": None,
+        "duplicates": None,
+        "schema": None,
+        "cardinality": None,
     }
+    for column in df.columns:
+        profile["columns"].append(analyse_column(column, df[column]))
+        _check_budget("column profiling")
+    profile["missingness"] = analyse_missingness(df)
+    _check_budget("missingness analysis")
+    profile["duplicates"] = analyse_duplicates(df)
+    _check_budget("duplicate analysis")
+    profile["schema"] = analyse_schema(df)
+    _check_budget("schema analysis")
+    profile["cardinality"] = analyse_cardinality(df)
+    _check_budget("cardinality analysis")
     return profile
 
 

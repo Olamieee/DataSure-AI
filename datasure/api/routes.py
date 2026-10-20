@@ -11,6 +11,7 @@ from flask_login import current_user
 
 from ..assessment import load_dataset_dataframe
 from ..datasets.ingest import DatasetParseError
+from ..profiling.profile import ProfilingTimeout
 from ..models import Assessment, CleaningOperation, Dataset, db
 
 bp = Blueprint("api", __name__)
@@ -138,6 +139,8 @@ def create_assessment(dataset_id: int):
         assessment = _run(dataset, target_column=target, label=label)
     except DatasetParseError as exc:
         raise ApiError(str(exc), 422)
+    except ProfilingTimeout as exc:
+        raise ApiError(f"assessment stopped: {exc}", 503)
     except Exception as exc:
         current_app.logger.exception("API assessment crashed for dataset %s", dataset.id)
         raise ApiError("assessment failed unexpectedly; see server logs", 500)

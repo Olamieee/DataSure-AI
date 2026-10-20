@@ -50,6 +50,8 @@ class Config:
     PREVIEW_ROWS = 25
 
     # Profiling limits.
+    PROFILE_TIME_BUDGET_SECONDS = float(
+        os.environ.get("DATASURE_PROFILE_TIME_BUDGET_SECONDS", "120"))
     OUTLIER_ZSCORE_THRESHOLD = 3.0
     IQR_FACTOR = 1.5
     HIGH_CARDINALITY_RATIO = 0.95  # unique / rows ratio treated as suspicious

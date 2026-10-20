@@ -18,6 +18,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from ..assessment import load_dataset_dataframe, run_assessment
+from ..profiling.profile import ProfilingTimeout
 from ..datasets.ingest import dataset_preview, dataframe_schema
 from ..models import Assessment, CleaningOperation, Dataset, SchemaContract, ValidationRule, db
 from ..storage import delete_file, sanitize_display_name, user_upload_dir
@@ -173,6 +174,11 @@ def assess(dataset_id: int):
         assessment = run_assessment(dataset, target_column=validated_target, label=label)
     except DatasetParseError as exc:
         flash(f"Assessment failed: {exc}", "danger")
+        return redirect(url_for("datasets.detail", dataset_id=dataset.id))
+    except ProfilingTimeout as exc:
+        flash(
+            f"Analysis stopped: {exc} Try a smaller dataset or ask an "
+            "administrator to raise the profiling time budget.", "warning")
         return redirect(url_for("datasets.detail", dataset_id=dataset.id))
     except Exception as exc:  # unexpected analysis failure
         current_app.logger.exception("Assessment crashed for dataset %s", dataset.id)
