@@ -77,14 +77,24 @@ def health():
 @bp.get("/datasets")
 def list_datasets():
     user = _api_user()
-    datasets = (
+    from ..pagination import paginate_stable
+
+    page = request.args.get("page", 1, type=int)
+    per_page = clamp_api_page_size()
+    result = paginate_stable(
         Dataset.query.filter_by(user_id=user.id)
-        .order_by(Dataset.updated_at.desc())
-        .limit(200)
-        .all()
+        .order_by(Dataset.updated_at.desc()),
+        page=page,
+        per_page=per_page,
     )
     return jsonify(
         {
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total": result["total"],
+            "has_next": result["has_next"],
+            # cursor for clients: appending ?page=N+1 lists the next slice
+            "next_page": result["next_num"] if result["has_next"] else None,
             "datasets": [
                 {
                     "id": d.id,
@@ -98,8 +108,8 @@ def list_datasets():
                     "is_cleaned": d.is_cleaned,
                     "created_at": d.created_at.isoformat(),
                 }
-                for d in datasets
-            ]
+                for d in result["items"]
+            ],
         }
     )
 
@@ -161,21 +171,43 @@ def get_assessment(assessment_id: int):
 @bp.get("/datasets/<int:dataset_id>/assessments")
 def list_assessments(dataset_id: int):
     dataset = _own_dataset(dataset_id)
-    rows = dataset.assessments.order_by(Assessment.created_at.desc()).limit(100).all()
-    return jsonify({"assessments": [_assessment_summary(a) for a in rows]})
+    from ..pagination import DEFAULT_PAGE_SIZE, clamp_page_size, paginate_stable
+
+    page = request.args.get("page", 1, type=int)
+    per_page = clamp_page_size(request.args.get("per_page", type=int))
+    result = paginate_stable(
+        dataset.assessments.order_by(Assessment.created_at.desc()),
+        page=page,
+        per_page=per_page,
+    )
+    return jsonify({
+        "page": result["page"],
+        "per_page": result["per_page"],
+        "total": result["total"],
+        "next_page": result["next_num"] if result["has_next"] else None,
+        "assessments": [_assessment_summary(a) for a in result["items"]],
+    })
 
 
 @bp.get("/datasets/<int:dataset_id>/cleaning")
 def cleaning_history(dataset_id: int):
     dataset = _own_dataset(dataset_id)
-    rows = (
+    from ..pagination import clamp_page_size, paginate_stable
+
+    page = request.args.get("page", 1, type=int)
+    per_page = clamp_page_size(request.args.get("per_page", type=int))
+    result = paginate_stable(
         CleaningOperation.query.filter_by(dataset_id=dataset.id)
-        .order_by(CleaningOperation.created_at.desc())
-        .limit(100)
-        .all()
+        .order_by(CleaningOperation.created_at.desc()),
+        page=page,
+        per_page=per_page,
     )
     return jsonify(
         {
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total": result["total"],
+            "next_page": result["next_num"] if result["has_next"] else None,
             "operations": [
                 {
                     "id": op.id,
@@ -186,10 +218,17 @@ def cleaning_history(dataset_id: int):
                     "cells_changed": op.cells_changed,
                     "created_at": op.created_at.isoformat(),
                 }
-                for op in rows
-            ]
+                for op in result["items"]
+            ],
         }
     )
+
+
+def clamp_api_page_size() -> int:
+    from ..pagination import DEFAULT_PAGE_SIZE, clamp_page_size
+
+    return clamp_page_size(request.args.get("per_page", type=int),
+                           DEFAULT_PAGE_SIZE)
 
 
 @bp.get("/datasets/<int:dataset_id>/preview")
