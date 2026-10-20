@@ -120,6 +120,33 @@
         <p class="small text-secondary mt-2 mb-0">Manage all contracts on the <a href="{{ url_for('contracts.list_contracts') }}">contracts page</a>.</p>
       </div>
     </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white"><strong>Validation rules</strong>
+        <a class="small ms-1" href="{{ url_for('rules.list_rules') }}">manage rules</a></div>
+      <div class="card-body py-3">
+        {% if user_rules %}
+        <form method="post" action="{{ url_for('rules.run_on_dataset', dataset_id=dataset.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% for rule in user_rules %}
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="rule_ids" value="{{ rule.id }}"
+                   id="rule-{{ rule.id }}" checked>
+            <label class="form-check-label small" for="rule-{{ rule.id }}">
+              {{ rule.name }} <span class="text-secondary">({{ rule.rule_type }})</span>
+            </label>
+          </div>
+          {% endfor %}
+          <button class="btn btn-sm btn-outline-primary mt-2" type="submit">Run selected rules</button>
+        </form>
+        {% else %}
+        <p class="small text-secondary mb-0">
+          No validation rules saved yet. <a href="{{ url_for('rules.list_rules') }}">Create reusable rules</a>
+          (numeric bounds, membership, uniqueness, cross-column comparisons) and run them here.
+        </p>
+        {% endif %}
+      </div>
+    </div>
   </div>
 </div>
 

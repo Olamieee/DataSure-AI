@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Validation rules · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Validation rules</h1>
+  <span class="small text-secondary">{{ rules|length }} saved rule(s)</span>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Saved rules</strong></div>
+      {% if rules %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light"><tr><th>Name</th><th>Definition</th><th></th></tr></thead>
+          <tbody>
+            {% for rule in rules %}
+            <tr>
+              <td class="fw-semibold">{{ rule.name }}
+                <div class="small text-secondary">{{ rule.rule_type }} · {{ rule.severity }}</div>
+              </td>
+              <td class="small"><code>{{ rule.rule_json | tojson }}</code></td>
+              <td class="text-end">
+                <form method="post" action="{{ url_for('rules.delete_rule', rule_id=rule.id) }}"
+                      onsubmit="return confirm('Delete this rule?')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="card-body text-secondary">
+        No rules yet. Create one on the right — for example
+        <em>age between 0 and 120</em> or <em>end_date after start_date</em> —
+        then run it against any dataset from its detail page.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white"><strong>Create a rule</strong></div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('rules.create_rule') }}" id="rule-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="mb-2">
+            <label class="form-label small" for="name">Rule name</label>
+            <input class="form-control form-control-sm" id="name" name="name" required maxlength="120">
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-7">
+              <label class="form-label small" for="rule_type">Type</label>
+              <select class="form-select form-select-sm" id="rule_type" name="rule_type" required>
+                {% for rule_type in rule_types %}<option value="{{ rule_type }}">{{ rule_type }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-5">
+              <label class="form-label small" for="severity">Severity</label>
+              <select class="form-select form-select-sm" id="severity" name="severity">
+                <option value="error">error</option>
+                <option value="warning">warning</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-2 field" data-types="numeric_range allowed_values unique not_null">
+            <label class="form-label small" for="column">Column</label>
+            <input class="form-control form-control-sm" id="column" name="column" placeholder="column name">
+          </div>
+          <div class="row g-2 mb-2 field" data-types="numeric_range">
+            <div class="col-4"><label class="form-label small" for="min">Min</label>
+              <input class="form-control form-control-sm" id="min" name="min" placeholder="optional"></div>
+            <div class="col-4"><label class="form-label small" for="max">Max</label>
+              <input class="form-control form-control-sm" id="max" name="max" placeholder="optional"></div>
+            <div class="col-4 d-flex align-items-end">
+              <div class="form-check"><input class="form-check-input" type="checkbox" id="inclusive" name="inclusive" checked>
+              <label class="form-check-label small" for="inclusive">inclusive</label></div>
+            </div>
+          </div>
+          <div class="mb-2 field" data-types="allowed_values">
+            <label class="form-label small" for="values">Allowed values (comma-separated)</label>
+            <input class="form-control form-control-sm" id="values" name="values" placeholder="value1, value2">
+          </div>
+          <div class="row g-2 mb-2 field" data-types="column_comparison">
+            <div class="col-4"><label class="form-label small" for="left">Left column</label>
+              <input class="form-control form-control-sm" id="left" name="left"></div>
+            <div class="col-4"><label class="form-label small" for="operator">Operator</label>
+              <select class="form-select form-select-sm" id="operator" name="operator">
+                <option value="<=">&le;</option><option value="<">&lt;</option>
+                <option value=">=">&ge;</option><option value=">">&gt;</option>
+                <option value="==">=</option><option value="!=">&ne;</option>
+              </select></div>
+            <div class="col-4"><label class="form-label small" for="right">Right column</label>
+              <input class="form-control form-control-sm" id="right" name="right"></div>
+          </div>
+          <button class="btn btn-primary btn-sm mt-1" type="submit">Save rule</button>
+        </form>
+      </div>
+      <div class="card-footer small text-secondary">
+        Rules are structured definitions, not expressions: only the listed
+        comparison operators are accepted and nothing is evaluated as code.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Show only the form fields relevant to the selected rule type.
+  document.addEventListener("DOMContentLoaded", function () {
+    var typeSelect = document.getElementById("rule_type");
+    function refresh() {
+      document.querySelectorAll("#rule-form .field").forEach(function (field) {
+        var types = (field.dataset.types || "").split(" ");
+        field.style.display = types.includes(typeSelect.value) ? "" : "none";
+      });
+    }
+    typeSelect.addEventListener("change", refresh);
+    refresh();
+  });
+</script>
+{% endblock %}

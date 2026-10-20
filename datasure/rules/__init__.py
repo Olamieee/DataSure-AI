@@ -8,12 +8,14 @@ from .engine import (
     normalise_rule,
     run_rules,
 )
+from .routes import bp
 
 __all__ = [
     "COMPARISON_OPERATORS",
     "RULE_TYPES",
     "SEVERITIES",
     "RuleDefinitionError",
+    "bp",
     "check",
     "normalise_rule",
     "run_rules",
