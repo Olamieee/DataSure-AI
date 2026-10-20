@@ -137,11 +137,11 @@ def test_api_requests_are_exempt_from_csrf(csrf_app, csrf_client):
     dataset_id = int(resp.headers["Location"].rstrip("/").rsplit("/", 1)[-1])
 
     with csrf_app.app_context():
+        from datasure.auth.apikeys import create_key
         from datasure.extensions import db
         from datasure.models import User
         user = db.session.query(User).filter_by(username="csrfuser").one()
-        key = user.generate_api_key()
-        db.session.commit()
+        _record, key = create_key(user, "csrf exemption test")
 
     resp = csrf_client.post(
         f"/api/v1/datasets/{dataset_id}/assessments",
