@@ -119,6 +119,30 @@ class Assessment(db.Model, TimestampMixin):
     label = db.Column(db.String(120))  # user-facing version label
 
 
+class ValidationRule(db.Model, TimestampMixin):
+    """Reusable, dataset-agnostic validation rules owned by a user.
+
+    rule_json layout depends on rule_type - all types use a fixed schema,
+    never free-form expressions:
+      numeric_range:      {"column", "min", "max", "inclusive"}
+      allowed_values:     {"column", "values": [...]}
+      unique:             {"column"}
+      not_null:           {"column"}
+      column_comparison:  {"left", "operator", "right"}  op in fixed registry
+    """
+    __tablename__ = "validation_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    rule_type = db.Column(db.String(32), nullable=False)
+    rule_json = db.Column(db.JSON, nullable=False)
+    severity = db.Column(db.String(16), nullable=False, default="error")  # error|warning
+
+    user = db.relationship("User", backref=db.backref("validation_rules", lazy="dynamic",
+                                                      cascade="all, delete-orphan"))
+
+
 class SchemaContract(db.Model, TimestampMixin):
     """Reusable schema expectations for validating uploaded datasets.
 
