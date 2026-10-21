@@ -92,3 +92,88 @@ def test_contract_scope_isolation(uploaded_messy_dataset, second_user):
 
     listing = second_user.get("/api/v1/contracts")
     assert listing.get_json()["contracts"] == []
+
+
+def test_contract_validation_passes_for_matching_dataset(uploaded_messy_dataset):
+    client = uploaded_messy_dataset["client"]
+    dataset_id = uploaded_messy_dataset["dataset_id"]
+    contract_id = _make_contract(client, dataset_id)
+
+    resp = client.post(
+        f"/api/v1/contracts/{contract_id}/validate",
+        json={"dataset_id": dataset_id},
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["passed"] is True
+    assert body["violations"] == []
+    assert body["contract_name"] == "people schema"
+
+
+def test_contract_validation_reports_violations(uploaded_messy_dataset):
+    client = uploaded_messy_dataset["client"]
+    dataset_id = uploaded_messy_dataset["dataset_id"]
+    contract_id = _make_contract(client, dataset_id)
+
+    # Misspelled chorus of missing columns plus bad ages: must fail.
+    broken = "nm,age,city,salary\nA,not-a-number,X,1\n"
+    other_id = _upload(client, broken, "broken.csv")
+    resp = client.post(
+        f"/api/v1/contracts/{contract_id}/validate",
+        json={"dataset_id": other_id},
+    )
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert body["passed"] is False
+    types = {v["type"] for v in body["violations"]}
+    assert "missing_column" in types
+    assert "wrong_kind" in types
+    # Generated contracts are permissive about extra columns (allow_extra=True).
+    assert "extra_column" not in types
+
+
+def test_contract_validation_updates_dataset_flags(app, uploaded_messy_dataset):
+    client = uploaded_messy_dataset["client"]
+    dataset_id = uploaded_messy_dataset["dataset_id"]
+    contract_id = _make_contract(client, dataset_id)
+
+    client.post(
+        f"/api/v1/contracts/{contract_id}/validate",
+        json={"dataset_id": dataset_id},
+    )
+    from datasure.extensions import db
+    from datasure.models import Dataset
+
+    with app.app_context():
+        dataset = db.session.get(Dataset, dataset_id)
+        assert dataset.contract_id == contract_id
+        assert dataset.contract_passed is True
+
+
+def test_contract_validation_bad_request_shape(logged_in_user, uploaded_messy_dataset):
+    client = uploaded_messy_dataset["client"]
+    dataset_id = uploaded_messy_dataset["dataset_id"]
+    contract_id = _make_contract(client, dataset_id)
+
+    resp = client.post(
+        f"/api/v1/contracts/{contract_id}/validate",
+        json={"nope": 1},
+    )
+    assert resp.status_code == 400
+    assert "dataset_id" in resp.get_json()["error"]
+
+
+def test_contract_validation_dataset_must_be_owned(
+    uploaded_messy_dataset, second_user
+):
+    client = uploaded_messy_dataset["client"]
+    dataset_id = uploaded_messy_dataset["dataset_id"]
+    contract_id = _make_contract(client, dataset_id)
+
+    other_id = _upload(second_user, "x,y\n1,2\n", "other_users_file.csv")
+    resp = client.post(
+        f"/api/v1/contracts/{contract_id}/validate",
+        json={"dataset_id": other_id},
+    )
+    assert resp.status_code == 404
+    assert resp.get_json() == {"error": "dataset not found"}

@@ -119,6 +119,42 @@ def get_contract(contract_id: int):
     return jsonify(payload)
 
 
+@bp.post("/contracts/<int:contract_id>/validate")
+def validate_contract(contract_id: int):
+    """Run contract validation against an owned dataset's stored data.
+
+    Body: JSON {"dataset_id": <int>}. Returns the violation list (empty means
+    the dataset satisfies the contract) and updates the dataset's stored
+    contract flags exactly like the web flow does.
+    """
+    contract = _own_contract(contract_id)
+    payload = request.get_json(silent=True) or {}
+    dataset_id = payload.get("dataset_id")
+    if not isinstance(dataset_id, int):
+        raise ApiError("body must be JSON with an integer 'dataset_id'", 400)
+    dataset = _own_dataset(dataset_id)
+    try:
+        df = load_dataset_dataframe(dataset)
+    except DatasetParseError as exc:
+        raise ApiError(str(exc), 422)
+
+    from ..contracts.engine import validate_dataframe as _validate
+
+    violations = _validate(df, contract.contract_json)
+    dataset.contract_id = contract.id
+    dataset.contract_passed = not violations
+    db.session.commit()
+    return jsonify(
+        {
+            "contract_id": contract.id,
+            "contract_name": contract.name,
+            "dataset_id": dataset.id,
+            "passed": not violations,
+            "violations": violations,
+        }
+    )
+
+
 @bp.get("/health")
 def health():
     return jsonify({"status": "ok", "service": "datasure-ai", "api_version": "v1"})
