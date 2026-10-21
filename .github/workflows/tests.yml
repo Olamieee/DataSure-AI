@@ -16,7 +16,11 @@ jobs:
       matrix:
         python-version: ["3.12", "3.13"]
     env:
-      DATASURE_INSTANCE_PATH: ${{ runner.temp }}/datasure-instance
+      # NOTE: do not reference the runner context from job-level env; on this
+      # repo that combination makes Actions fail at startup with no jobs.
+      # A literal /tmp path is enough: the pytest fixtures point each test app
+      # at its own temporary instance directory instead.
+      DATASURE_INSTANCE_PATH: /tmp/datasure-instance
       # Only used by the smoke config inside pytest; never a real secret.
       DATASURE_SECRET_KEY: ci-only-not-a-secret
     steps:
