@@ -11,6 +11,8 @@ from pathlib import Path
 
 from flask import Flask, render_template, request
 
+from .config import BASE_DIR
+
 
 def _configure_logging(app: Flask) -> None:
     logging.basicConfig(
@@ -63,7 +65,9 @@ def get_correlation_id() -> str:
 def create_app(config_name: str | None = None) -> Flask:
     template_dir = Path(__file__).resolve().parent.parent / "templates"
     static_dir = Path(__file__).resolve().parent.parent / "static"
-    instance_path = os.environ.get("DATASURE_INSTANCE_PATH")
+    instance_path = os.environ.get("DATASURE_INSTANCE_PATH") or str(
+        BASE_DIR / "instance"
+    )
 
     app = Flask(
         __name__,
@@ -88,9 +92,6 @@ def create_app(config_name: str | None = None) -> Flask:
         from .config import ProductionConfig
 
         app.config.from_object(ProductionConfig)
-        # SECRET_KEY classes capture the environment at import time; always
-        # re-read it here so every create_app() call sees the current env.
-        app.config["SECRET_KEY"] = os.environ.get("DATASURE_SECRET_KEY")
         # Serve secure cookies unless running locally with debug enabled.
         if not app.debug:
             app.config["SESSION_COOKIE_SECURE"] = True
@@ -99,7 +100,22 @@ def create_app(config_name: str | None = None) -> Flask:
             not app.debug,
         )
 
-    # Fail fast in production if the secret key is not configured.
+    # Re-read configuration that the classes capture once at import time, so
+    # every create_app() call sees the current environment. Testing pins its
+    # own secret key and in-memory SQLite database instead.
+    if conf != "testing":
+        app.config["SECRET_KEY"] = os.environ.get("DATASURE_SECRET_KEY")
+        database_url_env = os.environ.get("DATASURE_DATABASE_URL")
+        if database_url_env:
+            app.config["SQLALCHEMY_DATABASE_URI"] = database_url_env
+        else:
+            # Keep the SQLite file inside the selected instance directory so
+            # DATASURE_INSTANCE_PATH controls the database location too.
+            app.config["SQLALCHEMY_DATABASE_URI"] = (
+                f"sqlite:///{Path(instance_path) / 'datasure.db'}"
+            )
+
+    # Fail fast when no secret key is configured outside testing.
     if not app.config.get("SECRET_KEY") and not app.config.get("TESTING"):
         raise RuntimeError(
             "DATASURE_SECRET_KEY is not set. Generate one with:"
