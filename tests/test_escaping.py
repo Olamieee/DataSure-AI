@@ -88,6 +88,6 @@ def test_html_report_page_escapes_content(app, logged_in_user):
     dataset_id = _upload_file(client)
     client.post(f"/datasets/{dataset_id}/assess", data={}, follow_redirects=True)
     assessment_id = _current_assessment_id(app, dataset_id)
-    resp = client.get(f"/datasets/{dataset_id}/reports/{assessment_id}")
+    resp = client.get(f"/datasets/{dataset_id}/assessments/{assessment_id}/report")
     text = resp.data.decode("utf-8")
     assert "<script>alert(1)</script>" not in text

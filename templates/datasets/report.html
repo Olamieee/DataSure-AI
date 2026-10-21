@@ -38,13 +38,18 @@ Weights: completeness 30% · uniqueness 15% · validity 25% · consistency 20% �
 
 <h2>Dimension scores</h2>
 <table>
-  <tr><th>Dimension</th><th>Score / 100</th><th>Formula</th><th>Penalties applied</th></tr>
+  <caption class="visually-hidden">Quality dimension scores, formulas and penalties</caption>
+  <thead>
+  <tr><th scope="col">Dimension</th><th scope="col">Score / 100</th><th scope="col">Formula</th><th scope="col">Penalties applied</th></tr>
+  </thead>
+  <tbody>
   {% for name, dimension in assessment.scores_json.dimensions.items() %}
   <tr>
     <td>{{ name }}</td><td>{{ dimension.score }}</td><td><code>{{ dimension.formula }}</code></td>
     <td>{% for item in dimension.breakdown %}{{ item.cause }} (−{{ item.penalty }}){% if not loop.last %}; {% endif %}{% else %}—{% endfor %}</td>
   </tr>
   {% endfor %}
+  </tbody>
 </table>
 
 <h2>Detected issues ({{ assessment.issues_json | length }})</h2>
@@ -59,12 +64,16 @@ Weights: completeness 30% · uniqueness 15% · validity 25% · consistency 20% �
 
 <h2>Visual analytics</h2>
 {% for key, uri in charts.items() %}
-<img src="{{ uri }}" alt="{{ key }}">
+<img src="{{ uri }}" alt="Chart for {{ key.replace('_', ' ') }}" role="img">
 {% endfor %}
 
 <h2>Column statistics</h2>
 <table>
-  <tr><th>Column</th><th>Kind</th><th>dtype</th><th>Missing %</th><th>Unique</th><th>Mean</th><th>Std</th><th>Min</th><th>Max</th><th>IQR outliers</th></tr>
+  <caption class="visually-hidden">Per-column statistics from the profile snapshot</caption>
+  <thead>
+  <tr><th scope="col">Column</th><th scope="col">Kind</th><th scope="col">dtype</th><th scope="col">Missing %</th><th scope="col">Unique</th><th scope="col">Mean</th><th scope="col">Std</th><th scope="col">Min</th><th scope="col">Max</th><th scope="col">IQR outliers</th></tr>
+  </thead>
+  <tbody>
   {% for column in assessment.profile_json.columns %}
   <tr>
     <td>{{ column.name }}</td><td>{{ column.kind }}</td><td><code>{{ column.pandas_dtype }}</code></td>
@@ -76,12 +85,17 @@ Weights: completeness 30% · uniqueness 15% · validity 25% · consistency 20% �
     <td>{{ column.outliers.iqr_count if column.outliers else '—' }}</td>
   </tr>
   {% endfor %}
+  </tbody>
 </table>
 
 <h2>Cleaning history</h2>
 {% if operations %}
 <table>
-  <tr><th>When</th><th>Operation</th><th>Rows</th><th>Columns</th><th>Cells changed</th></tr>
+  <caption class="visually-hidden">Cleaning operations applied to this dataset</caption>
+  <thead>
+  <tr><th scope="col">When</th><th scope="col">Operation</th><th scope="col">Rows</th><th scope="col">Columns</th><th scope="col">Cells changed</th></tr>
+  </thead>
+  <tbody>
   {% for op in operations %}
   <tr>
     <td>{{ op.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
@@ -91,6 +105,7 @@ Weights: completeness 30% · uniqueness 15% · validity 25% · consistency 20% �
     <td>{{ op.cells_changed }}</td>
   </tr>
   {% endfor %}
+  </tbody>
 </table>
 {% else %}
 <p class="muted">No cleaning operations recorded for this dataset.</p>
