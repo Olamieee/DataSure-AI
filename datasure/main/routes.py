@@ -27,7 +27,7 @@ def dashboard():
     )
     result = paginate_stable(
         Dataset.query.filter_by(user_id=current_user.id)
-        .order_by(Dataset.updated_at.desc()),
+        .order_by(Dataset.updated_at.desc(), Dataset.id.desc()),
         page=page,
         per_page=DEFAULT_PAGE_SIZE,
     )

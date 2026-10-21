@@ -83,7 +83,7 @@ def list_datasets():
     per_page = clamp_api_page_size()
     result = paginate_stable(
         Dataset.query.filter_by(user_id=user.id)
-        .order_by(Dataset.updated_at.desc()),
+        .order_by(Dataset.updated_at.desc(), Dataset.id.desc()),
         page=page,
         per_page=per_page,
     )
@@ -176,7 +176,8 @@ def list_assessments(dataset_id: int):
     page = request.args.get("page", 1, type=int)
     per_page = clamp_page_size(request.args.get("per_page", type=int))
     result = paginate_stable(
-        dataset.assessments.order_by(Assessment.created_at.desc()),
+        dataset.assessments.order_by(Assessment.created_at.desc(),
+                                     Assessment.id.desc()),
         page=page,
         per_page=per_page,
     )
@@ -198,7 +199,7 @@ def cleaning_history(dataset_id: int):
     per_page = clamp_page_size(request.args.get("per_page", type=int))
     result = paginate_stable(
         CleaningOperation.query.filter_by(dataset_id=dataset.id)
-        .order_by(CleaningOperation.created_at.desc()),
+        .order_by(CleaningOperation.created_at.desc(), CleaningOperation.id.desc()),
         page=page,
         per_page=per_page,
     )

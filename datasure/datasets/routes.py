@@ -111,7 +111,8 @@ def history_all():
     if selected is not None:
         page = request.args.get("page", 1, type=int)
         page_state = paginate_stable(
-            selected.assessments.order_by(Assessment.created_at.desc()),
+            selected.assessments.order_by(Assessment.created_at.desc(),
+                                          Assessment.id.desc()),
             page=page,
             per_page=DEFAULT_PAGE_SIZE,
         )
