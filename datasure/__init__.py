@@ -83,6 +83,9 @@ def create_app(config_name: str | None = None) -> Flask:
         from .config import ProductionConfig
 
         app.config.from_object(ProductionConfig)
+        # SECRET_KEY classes capture the environment at import time; always
+        # re-read it here so every create_app() call sees the current env.
+        app.config["SECRET_KEY"] = os.environ.get("DATASURE_SECRET_KEY")
         # Serve secure cookies unless running locally with debug enabled.
         if not app.debug:
             app.config["SESSION_COOKIE_SECURE"] = True

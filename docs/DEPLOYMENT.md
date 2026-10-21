@@ -1,0 +1,134 @@
+# Deployment
+
+This document describes a production deployment of DataSure AI: environment,
+WSGI server, reverse proxy, HTTPS, backups and operational checks. It is
+written for the maintainers; nothing here has been executed against paid
+infrastructure.
+
+## 1. Prerequisites
+
+- Python 3.12+ (the CI matrix tests 3.12 and 3.13).
+- A Linux or Windows host, or a container platform.
+- A PostgreSQL server for multi-user, multi-process deployments
+  (SQLite is acceptable for single-user or evaluation instances).
+
+## 2. Environment variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `DATASURE_SECRET_KEY` | **Yes (production)** | Flask secret for session signing. Generate: `python -c "import secrets; print(secrets.token_hex(32))"`. Treat like a password; rotate carefully. |
+| `DATASURE_DATABASE_URL` | recommended | `postgresql+psycopg://user:pass@host/db`. Unset = default SQLite under the instance path. |
+| `DATASURE_INSTANCE_PATH` | recommended | Directory holding the DB, `uploads/` and `reports/`. Must be writable and backed up. |
+| `DATASURE_MAX_UPLOAD_MB` | optional | Upload size cap, default `50`. |
+| `DATASURE_MAX_ROWS` / `DATASURE_MAX_COLUMNS` | optional | Shape caps, default `500000` / `400`. |
+| `DATASURE_PROFILE_TIME_BUDGET_SECONDS` | optional | Profiling wall-time budget, default `120`. |
+| `DATASURE_CONFIG` | optional | `production` (default) or `development`. |
+
+## 3. Install
+
+```bash
+python -m venv .venv
+. .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+# PostgreSQL driver (only if using PostgreSQL):
+pip install "psycopg[binary]"
+```
+
+## 4. Run with a WSGI server
+
+The repo ships `wsgi.py` exposing `application`. Examples:
+
+```bash
+# Waitress (pure Python, works on Windows and Linux)
+.venv/bin/python -m waitress --listen=127.0.0.1:8000 --threads=8 wsgi:application
+
+# gunicorn (Linux)
+gunicorn --workers 4 --bind 127.0.0.1:8000 wsgi:application
+```
+
+- Keep the app bound to `127.0.0.1`; a reverse proxy terminates TLS and serves
+  the public interface.
+- Size workers to the instance (profiling is CPU-bound but bounded by the
+  `DATASURE_PROFILE_TIME_BUDGET_SECONDS` budget, oversized uploads are rejected
+  early by the streamed scan before full parsing).
+- The login rate limiter is in-process: with several workers, each limits
+  independently. For strict cross-worker limits, front the app with a proxy
+  feature (e.g. nginx `limit_req`) or a shared Redis store.
+
+## 5. Reverse proxy and HTTPS
+
+Example nginx:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name datasure.example.com;
+
+    ssl_certificate     /etc/letsencrypt/live/datasure.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/datasure.example.com/privkey.pem;
+
+    client_max_body_size 55m;   # above DATASURE_MAX_UPLOAD_MB
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
+```
+
+Notes:
+
+- Production config forces `SESSION_COOKIE_SECURE`; HTTPS is therefore
+  effectively required.
+- The app labels cookies `SameSite=Lax` and `HttpOnly` and stamps
+  `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy` on responses.
+- Behind a proxy, per-address rate limiting sees the proxy IP. Prefer proxy-side
+  limits or a real-IP middleware if that matters to your deployment.
+
+## 6. Database migrations
+
+Schema changes are made through `db.create_all()` at startup, which creates
+missing tables on first run. **There is no migration tool installed yet**;
+treat schema changes as a Manually Reviewed change for existing multi-protocol
+databases. Back up the database before upgrading (Section 8).
+
+## 7. Data retention and deletion
+
+- Deleting a dataset removes its stored file, rows in related tables
+  (assessments, cleaning operations, contract links) and its audit events'
+  dataset link (`ON DELETE SET NULL`). User-initiated deletion is the primary
+  retention mechanism.
+- Uploaded files live solely under `<instance>/uploads/user_<id>/` with
+  server-generated UUID names; the original filename is only stored for display
+  and download naming.
+
+## 8. Backups
+
+- Back up the whole instance directory (database + uploads + reports). The
+  uploads file tree is content-addressable by UUID names; back up within the
+  same backup job as the DB so they stay consistent.
+- For PostgreSQL, use `pg_dump` in the same schedule.
+
+## 9. Operational checks
+
+After each deploy:
+
+1. `GET /api/v1/health` → `{"status": "ok", ...}` (unauthenticated).
+2. Register a scratch account, upload a small CSV, run one assessment, delete
+   the dataset.
+3. Confirm `X-Request-ID` appears on responses (used for log/error
+   correlation).
+4. Check the log stream contains no dataset contents, passwords or API key
+   material (see `docs/ARCHITECTURE.md` for the logging guarantees).
+
+## 10. Known deployment caveats (honest list)
+
+- No migration tooling (Section 6); first-run `create_all` only.
+- Rate limiting is per worker process (Section 4).
+- No email flows: password reset is not offered; the password change page
+  requires the current password.
+- The app serves its own static files; a CDN is unnecessary, but proxy-side
+  caching of `/static/*` is fine.
