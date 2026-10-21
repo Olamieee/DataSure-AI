@@ -12,7 +12,7 @@ from flask_login import current_user
 from ..assessment import load_dataset_dataframe
 from ..datasets.ingest import DatasetParseError
 from ..profiling.profile import ProfilingTimeout
-from ..models import Assessment, CleaningOperation, Dataset, db
+from ..models import Assessment, CleaningOperation, Dataset, SchemaContract, db
 
 bp = Blueprint("api", __name__)
 
@@ -67,6 +67,56 @@ def _own_dataset(dataset_id: int) -> Dataset:
     if dataset is None or dataset.user_id != user.id:
         raise ApiError("dataset not found", 404)
     return dataset
+
+
+def _own_contract(contract_id: int) -> SchemaContract:
+    user = _api_user()
+    contract = db.session.get(SchemaContract, contract_id)
+    if contract is None or contract.user_id != user.id:
+        raise ApiError("contract not found", 404)
+    return contract
+
+
+def _contract_summary(contract: SchemaContract) -> dict:
+    return {
+        "id": contract.id,
+        "name": contract.name,
+        "description": contract.description,
+        "column_count": len(contract.contract_json.get("columns", [])),
+        "created_at": contract.created_at.isoformat(),
+    }
+
+
+@bp.get("/contracts")
+def list_contracts():
+    user = _api_user()
+    from ..pagination import clamp_page_size, paginate_stable
+
+    page = request.args.get("page", 1, type=int)
+    per_page = clamp_page_size(request.args.get("per_page", type=int))
+    result = paginate_stable(
+        SchemaContract.query.filter_by(user_id=user.id)
+        .order_by(SchemaContract.created_at.desc(), SchemaContract.id.desc()),
+        page=page,
+        per_page=per_page,
+    )
+    return jsonify(
+        {
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total": result["total"],
+            "next_page": result["next_num"] if result["has_next"] else None,
+            "contracts": [_contract_summary(c) for c in result["items"]],
+        }
+    )
+
+
+@bp.get("/contracts/<int:contract_id>")
+def get_contract(contract_id: int):
+    contract = _own_contract(contract_id)
+    payload = _contract_summary(contract)
+    payload["contract"] = contract.contract_json
+    return jsonify(payload)
 
 
 @bp.get("/health")
