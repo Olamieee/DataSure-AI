@@ -22,6 +22,7 @@ infrastructure.
 | `DATASURE_MAX_UPLOAD_MB` | optional | Upload size cap, default `50`. |
 | `DATASURE_MAX_ROWS` / `DATASURE_MAX_COLUMNS` | optional | Shape caps, default `500000` / `400`. |
 | `DATASURE_PROFILE_TIME_BUDGET_SECONDS` | optional | Profiling wall-time budget, default `120`. |
+| `DATASURE_LOG_FORMAT` | optional | `text` (default) or `json`; JSON emits one object per log line with level, logger, message and the request correlation id — convenient for log aggregators. |
 | `DATASURE_CONFIG` | optional | `production` (default) or `development`. |
 
 ## 3. Install

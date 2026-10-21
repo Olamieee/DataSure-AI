@@ -52,6 +52,9 @@ class Config:
     # Profiling limits.
     PROFILE_TIME_BUDGET_SECONDS = float(
         os.environ.get("DATASURE_PROFILE_TIME_BUDGET_SECONDS", "120"))
+
+    # Log output format: "text" (default) or "json" for aggregators.
+    LOG_FORMAT = os.environ.get("DATASURE_LOG_FORMAT", "text")
     OUTLIER_ZSCORE_THRESHOLD = 3.0
     IQR_FACTOR = 1.5
     HIGH_CARDINALITY_RATIO = 0.95  # unique / rows ratio treated as suspicious

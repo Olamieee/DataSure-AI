@@ -23,6 +23,11 @@ def _configure_logging(app: Flask) -> None:
         logging.getLogger(noisy).setLevel(logging.WARNING)
     # Note: request bodies are never logged - they may contain dataset contents.
 
+    if app.config.get("LOG_FORMAT") == "json":
+        from .logformat import apply_formatter
+
+        apply_formatter(app)
+
 
 def _record_factory(*args, **kwargs) -> logging.LogRecord:
     """Ensure every log record carries a request_id even outside requests."""
