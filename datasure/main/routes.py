@@ -8,6 +8,15 @@ from ..models import Dataset
 bp = Blueprint("main", __name__)
 
 
+@bp.route("/healthz")
+def healthz():
+    """Unauthenticated health check for load balancers and uptime monitors."""
+    from ..health import run_health_checks
+
+    payload, status_code = run_health_checks(db)
+    return payload, status_code
+
+
 @bp.route("/")
 def index():
     if current_user.is_authenticated:
