@@ -530,6 +530,26 @@ def _clean_payload_or_fail(dataset: Dataset):
     columns = request.form.getlist("columns")
     if columns:
         params["columns"] = columns
+
+    # Optimistic concurrency: the preview page records which version the user
+    # based the operation on. If another action (assessment, earlier apply,
+    # background job) changed the dataset since then, apply is refused.
+    expected_version = request.form.get("expected_version")
+    if expected_version:
+        try:
+            if int(expected_version) != dataset.storage_version:
+                flash(
+                    "The dataset changed since this preview was created "
+                    f"(currently version {dataset.storage_version}, preview "
+                    f"based on version {expected_version}). Re-open the cleaning "
+                    "workspace and apply again.",
+                    "warning",
+                )
+                return None
+        except ValueError:
+            flash("Invalid version reference; re-open the cleaning workspace.",
+                  "warning")
+            return None
     return operation, params
 
 

@@ -40,6 +40,7 @@
   <form method="post" action="{{ url_for('datasets.clean_apply', dataset_id=dataset.id) }}"
         onsubmit="return confirm('Apply this cleaning operation? A new dataset version will be stored; the original remains preserved.')">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="expected_version" value="{{ dataset.storage_version }}">
     <input type="hidden" name="operation" value="{{ operation }}">
     {% for key, value in params.items() %}
       {% if value is sequence and value is not string %}
