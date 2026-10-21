@@ -1,11 +1,13 @@
 """Dataset blueprint: upload, view, assess, clean, download, delete."""
 from __future__ import annotations
 
+import csv
 import io
 from pathlib import Path
 
 from flask import (
     Blueprint,
+    Response,
     abort,
     current_app,
     flash,
@@ -270,6 +272,77 @@ def download(dataset_id: int):
         abort(404)
     download_name = _download_name(dataset)
     return send_file(path, as_attachment=True, download_name=download_name)
+
+
+@bp.route("/<int:dataset_id>/export/<export_kind>.csv")
+@login_required
+def export_csv(dataset_id: int, export_kind: str):
+    """Download a CSV export of the latest assessment's findings or stats."""
+    if export_kind not in {"issues", "stats"}:
+        abort(404)
+    dataset = _owned_dataset(dataset_id)
+    assessment = (
+        Assessment.query.filter_by(dataset_id=dataset.id)
+        .order_by(Assessment.created_at.desc())
+        .first()
+    )
+    if assessment is None:
+        flash("Run an assessment first; exports summarise the latest assessment.", "warning")
+        return redirect(url_for("datasets.detail", dataset_id=dataset.id))
+
+    rows = _export_rows(assessment, export_kind)
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
+    for row in rows:
+        writer.writerow(row)
+    download_name = _download_name(dataset).replace(
+        dataset.extension.lstrip(".") or "csv", f"_{export_kind}.csv"
+    )
+    return Response(
+        buffer.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={download_name}"},
+    )
+
+
+def _export_rows(assessment: Assessment, export_kind: str) -> list[list]:
+    """Plain tabular rows for CSV export (strings, no nested types)."""
+    if export_kind == "issues":
+        header = ["kind", "severity", "columns", "message"]
+        rows = [header]
+        for issue in assessment.issues_json or []:
+            rows.append([
+                str(issue.get("kind", "")),
+                str(issue.get("severity", "")),
+                ", ".join(str(c) for c in issue.get("columns", []) or []),
+                str(issue.get("message", "")),
+            ])
+        return rows
+
+    # stats export: one row per column of the profile
+    header = [
+        "column", "dtype", "kind", "non_null", "missing", "missing_pct",
+        "unique", "constant", "is_identifier",
+    ]
+    rows = [header]
+    for column in (assessment.profile_json or {}).get("columns", []):
+        stats = column.get("stats") or {}
+        rows.append([
+            str(column.get("name", "")),
+            str(column.get("pandas_dtype", "")),
+            str(column.get("kind", "")),
+            str(column.get("non_null", "")),
+            str(column.get("missing", "")),
+            str(column.get("missing_pct", "")),
+            str(column.get("unique", "")),
+            str(bool(column.get("constant", False))),
+            str(bool(column.get("is_identifier", False))),
+            *(str(stats[key]) if key in stats else "" for key in
+              ("min", "max", "mean", "std", "median")),
+        ])
+    header += ["min", "max", "mean", "std", "median"]
+    rows[0] = header
+    return rows
 
 
 def _download_name(dataset: Dataset) -> str:
