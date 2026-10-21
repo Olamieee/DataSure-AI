@@ -139,6 +139,7 @@ def create_app(config_name: str | None = None) -> Flask:
     # Register blueprints.
     from .api.routes import bp as api_bp
     from .auth.routes import bp as auth_bp
+    from .cli import bp as cli_bp
     from .contracts.routes import bp as contracts_bp
     from .datasets.routes import bp as datasets_bp
     from .main.routes import bp as main_bp
@@ -152,6 +153,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.register_blueprint(settings_bp, url_prefix="/settings")
     app.register_blueprint(contracts_bp, url_prefix="/contracts")
     app.register_blueprint(rules_bp, url_prefix="/rules")
+    app.register_blueprint(cli_bp)
     csrf.exempt(api_bp)  # API clients authenticate with keys, not form tokens
 
     @app.after_request
