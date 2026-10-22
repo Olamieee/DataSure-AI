@@ -402,6 +402,40 @@ def export_assessment_csv(assessment_id: int, export_kind: str):
     )
 
 
+@bp.get("/assessments/compare")
+def compare_assessments_endpoint():
+    """Compare two of your assessments (any order, any owned datasets).
+
+    Query params: `from` and `to` (assessment ids). Returns the same
+    comparison structure the web compare page renders.
+    """
+    from_id = request.args.get("from", type=int)
+    to_id = request.args.get("to", type=int)
+    if not from_id or not to_id:
+        raise ApiError(
+            "provide integer query params 'from' and 'to' (assessment ids)",
+            400,
+        )
+    if from_id == to_id:
+        raise ApiError("'from' and 'to' must be different assessments", 400)
+    user = _api_user()
+    assessment_from = db.session.get(Assessment, from_id)
+    assessment_to = db.session.get(Assessment, to_id)
+    for assessment in (assessment_from, assessment_to):
+        if assessment is None or assessment.user_id != user.id:
+            raise ApiError("assessment not found", 404)
+    from ..profiling.compare import compare_assessments as _compare
+
+    result = _compare(assessment_from, assessment_to)
+    return jsonify(
+        {
+            "from": from_id,
+            "to": to_id,
+            "comparison": result,
+        }
+    )
+
+
 @bp.get("/datasets/<int:dataset_id>/assessments")
 def list_assessments(dataset_id: int):
     dataset = _own_dataset(dataset_id)
