@@ -11,8 +11,15 @@ from flask_login import current_user
 
 from ..assessment import load_dataset_dataframe
 from ..datasets.ingest import DatasetParseError
+from ..models import (
+    Assessment,
+    CleaningOperation,
+    Dataset,
+    SchemaContract,
+    ValidationRule,
+    db,
+)
 from ..profiling.profile import ProfilingTimeout
-from ..models import Assessment, CleaningOperation, Dataset, SchemaContract, db
 
 bp = Blueprint("api", __name__)
 
@@ -151,6 +158,113 @@ def validate_contract(contract_id: int):
             "dataset_id": dataset.id,
             "passed": not violations,
             "violations": violations,
+        }
+    )
+
+
+# --------------------------------------------------------------------- rules
+def _rule_summary(rule: ValidationRule) -> dict:
+    return {
+        "id": rule.id,
+        "name": rule.name,
+        "rule_type": rule.rule_type,
+        "rule": rule.rule_json,
+        "created_at": rule.created_at.isoformat(),
+    }
+
+
+@bp.get("/rules")
+def list_rules():
+    user = _api_user()
+    from ..pagination import clamp_page_size, paginate_stable
+
+    page = request.args.get("page", 1, type=int)
+    per_page = clamp_page_size(request.args.get("per_page", type=int))
+    result = paginate_stable(
+        ValidationRule.query.filter_by(user_id=user.id)
+        .order_by(ValidationRule.created_at.desc(), ValidationRule.id.desc()),
+        page=page,
+        per_page=per_page,
+    )
+    return jsonify(
+        {
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total": result["total"],
+            "next_page": result["next_num"] if result["has_next"] else None,
+            "rules": [_rule_summary(r) for r in result["items"]],
+        }
+    )
+
+
+@bp.post("/rules")
+def create_rule():
+    """Create a validation rule from a JSON definition (never evaluated as code)."""
+    user = _api_user()
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()[:120]
+    if not name:
+        raise ApiError("name is required", 400)
+    rule_type = payload.get("rule_type") or ""
+    rule_json = payload.get("rule")
+    if not isinstance(rule_json, dict):
+        raise ApiError("'rule' must be a JSON object", 400)
+    from ..rules.engine import RuleDefinitionError, normalise_rule
+
+    try:
+        normalised = normalise_rule(rule_type, rule_json)
+    except RuleDefinitionError as exc:
+        raise ApiError(str(exc), 422)
+    record = ValidationRule(
+        user_id=user.id, name=name, rule_type=rule_type, rule_json=normalised
+    )
+    db.session.add(record)
+    db.session.commit()
+    return jsonify(_rule_summary(record)), 201
+
+
+@bp.post("/datasets/<int:dataset_id>/rules/run")
+def run_rules_on_dataset(dataset_id: int):
+    """Run selected rules against an owned dataset's stored data.
+
+    Body: JSON {"rule_ids": [<int>, ...]} – every id must belong to the
+    caller. Results mirror the web run: one pass/fail summary per rule.
+    """
+    dataset = _own_dataset(dataset_id)
+    user = _api_user()
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get("rule_ids")
+    if not isinstance(ids, list) or not ids or not all(
+        isinstance(value, int) for value in ids
+    ):
+        raise ApiError(
+            "body must include a non-empty 'rule_ids' list of integers", 400
+        )
+    wanted = set(ids)
+    rules = (
+        ValidationRule.query.filter(
+            ValidationRule.user_id == user.id,
+            ValidationRule.id.in_(wanted),
+        )
+        .order_by(ValidationRule.created_at.desc(), ValidationRule.id.desc())
+        .all()
+    )
+    if {r.id for r in rules} != wanted:
+        raise ApiError("one or more selected rules do not exist", 404)
+    try:
+        df = load_dataset_dataframe(dataset)
+    except DatasetParseError as exc:
+        raise ApiError(str(exc), 422)
+    from ..rules.engine import run_rules as _run
+
+    results = _run(df, rules)
+    failed = sum(1 for result in results if not result["passed"])
+    return jsonify(
+        {
+            "dataset_id": dataset.id,
+            "passed": len(results) - failed,
+            "failed": failed,
+            "results": results,
         }
     )
 
