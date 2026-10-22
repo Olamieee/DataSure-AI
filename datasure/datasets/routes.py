@@ -140,6 +140,26 @@ def history_all():
     )
 
 
+def _quality_trend(dataset: Dataset, max_points: int = 8) -> list[dict]:
+    """Oldest-to-newest quality scores with per-step deltas (for the detail page)."""
+    rows = (
+        dataset.assessments.order_by(Assessment.created_at.asc(),
+                                     Assessment.id.asc()).all()
+    )
+    trend: list[dict] = []
+    previous: float | None = None
+    for row in rows[-max_points:]:
+        delta = None if previous is None else round(
+            row.quality_score - previous, 1
+        )
+        trend.append(
+            {"assessment_id": row.id, "score": row.quality_score,
+             "created_at": row.created_at, "delta": delta}
+        )
+        previous = row.quality_score
+    return trend
+
+
 @bp.route("/<int:dataset_id>")
 @login_required
 def detail(dataset_id: int):
@@ -159,6 +179,7 @@ def detail(dataset_id: int):
     context = {
         "dataset": dataset,
         "latest_assessment": latest,
+        "quality_trend": _quality_trend(dataset),
         "schema": schema,
         "preview": preview,
         "user_contracts": (

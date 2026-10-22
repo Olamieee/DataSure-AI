@@ -66,6 +66,45 @@
 </div>
 {% endif %}
 
+{% if quality_trend %}
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>Quality trend</strong></div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0 align-middle">
+      <caption class="visually-hidden">
+        Quality score history with the change from each previous run.
+      </caption>
+      <thead class="table-light">
+        <tr><th scope="col">Assessed</th><th scope="col">Score</th><th scope="col">Change</th></tr>
+      </thead>
+      <tbody>
+        {% for point in quality_trend %}
+        <tr>
+          <td>
+            <a href="{{ url_for('datasets.assessment', dataset_id=dataset.id, assessment_id=point.assessment_id) }}">
+              {{ point.created_at.strftime('%Y-%m-%d %H:%M') }}
+            </a>
+          </td>
+          <td class="fw-semibold">{{ '%.1f'|format(point.score) }}</td>
+          <td>
+            {% if point.delta is none %}
+            <span class="text-secondary">first run</span>
+            {% elif point.delta > 0 %}
+            <span class="text-success">▲ {{ point.delta }}</span>
+            {% elif point.delta < 0 %}
+            <span class="text-danger">▼ {{ point.delta | abs }}</span>
+            {% else %}
+            <span class="text-secondary">■ unchanged</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <div class="row g-4">
   <div class="col-lg-7">
     <div class="card shadow-sm mb-4">
