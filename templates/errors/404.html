@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Page not found · DataSure AI{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-6">Page not found</h1>
+  <p class="text-secondary">The page you asked for does not exist or may have
+    been deleted. If you followed a link from inside DataSure AI, it may point
+    to removed content.</p>
+  <p class="text-secondary small">Request identifier: <code>{{ request_id or 'n/a' }}</code></p>
+  <a class="btn btn-primary mt-2" href="{{ url_for('main.dashboard') }}">Back to dashboard</a>
+</div>
+{% endblock %}

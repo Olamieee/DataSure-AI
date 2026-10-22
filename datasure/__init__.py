@@ -172,6 +172,20 @@ def create_app(config_name: str | None = None) -> Flask:
             return render_template("errors/500.html", request_id=request_id), 500
         return {"error": "internal server error", "request_id": request_id}, 500
 
+    @app.errorhandler(404)
+    def _not_found(error):
+        """Friendly 404 page for browsers; JSON for API/framework clients."""
+        request_id = get_correlation_id()
+        wants_json = request.path.startswith("/api/") or (
+            request.accept_mimetypes.best_match(
+                ["text/html", "application/json"]
+            )
+            == "application/json"
+        )
+        if wants_json:
+            return {"error": "page not found", "request_id": request_id}, 404
+        return render_template("errors/404.html", request_id=request_id), 404
+
     with app.app_context():
         db.create_all()
 
