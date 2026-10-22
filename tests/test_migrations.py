@@ -77,14 +77,14 @@ def test_failing_migration_rolls_back_and_raises(app):
         assert current_version() == 1
 
 
-def test_progress_uses_utc_timestamps(app):
+def test_progress_uses_timestamps_close_to_now(app):
     with app.app_context():
+        from datetime import datetime, timezone
+
+        from datasure.models import _utcnow
+
         row = db.session.query(SchemaState).one()
         assert isinstance(row.applied_at, datetime)
-        assert (datetime.utcnow() - row.applied_at).total_seconds() < 3600 or (
-            row.applied_at.tzinfo is not None
-            and (
-                datetime.now(row.applied_at.tzinfo) - row.applied_at
-            ).total_seconds()
-            < 3600
-        )
+        now = _utcnow().replace(tzinfo=None)  # CURRENT_TIMESTAMP is naive UTC
+        age = abs((now - row.applied_at).total_seconds())
+        assert age < 3600
