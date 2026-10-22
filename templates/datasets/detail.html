@@ -14,6 +14,7 @@
   </div>
   <div class="btn-group">
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('datasets.download', dataset_id=dataset.id) }}">Download current file</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('datasets.data_dictionary', dataset_id=dataset.id) }}">Data dictionary</a>
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('datasets.cleaning_history', dataset_id=dataset.id) }}">History</a>
     <form method="post" action="{{ url_for('datasets.delete', dataset_id=dataset.id) }}"
           onsubmit="return confirm('Delete this dataset and all its assessments? This cannot be undone.')">

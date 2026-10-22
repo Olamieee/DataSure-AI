@@ -11,6 +11,7 @@ from flask import (
     abort,
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -362,6 +363,108 @@ def _download_name(dataset: Dataset) -> str:
     safe = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in stem)
     suffix = "_v{version}".format(version=dataset.storage_version) if dataset.storage_version > 1 else ""
     return f"{safe}{suffix}{dataset.extension}"
+
+
+def _latest_assessment(dataset: Dataset) -> Assessment | None:
+    return (
+        Assessment.query.filter_by(dataset_id=dataset.id)
+        .order_by(Assessment.created_at.desc(), Assessment.id.desc())
+        .first()
+    )
+
+
+def _markdown_escape(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
+
+
+def _dictionary_markdown(dataset: Dataset, assessment: Assessment) -> str:
+    """Render the latest profile as a human-readable Markdown dictionary."""
+    from datetime import datetime, timezone
+
+    columns = (assessment.profile_json or {}).get("columns", [])
+    lines = [
+        f"# Data dictionary: {dataset.name}",
+        "",
+        f"Generated {datetime.now(timezone.utc):%Y-%m-%d %H:%M UTC} from "
+        f"assessment #{assessment.id} "
+        f"({dataset.row_count} rows, {dataset.column_count} columns).",
+        "",
+        "| Column | Type | Kind | Non-null | Missing | Unique | Notes |",
+        "|---|---|---|---|---|---|---|",
+    ]
+    for column in columns:
+        stats = column.get("stats") or {}
+        notes: list[str] = []
+        if column.get("constant"):
+            notes.append("constant")
+        if column.get("is_identifier"):
+            notes.append("likely identifier")
+        if stats.get("min") is not None and column.get("kind") == "numeric":
+            notes.append(f"range {stats['min']} … {stats['max']}")
+        non_null = column.get("non_null", "")
+        missing = column.get("missing", "")
+        missing_pct = column.get("missing_pct")
+        missing_cell = (
+            f"{missing} ({missing_pct}%)" if missing_pct is not None else missing
+        )
+        lines.append(
+            "| {name} | {dtype} | {kind} | {non_null} | {missing} | {unique} | {notes} |".format(
+                name=_markdown_escape(str(column.get("name", ""))),
+                dtype=_markdown_escape(str(column.get("pandas_dtype", ""))),
+                kind=_markdown_escape(str(column.get("kind", ""))),
+                non_null=non_null,
+                missing=missing_cell,
+                unique=column.get("unique", ""),
+                notes=_markdown_escape("; ".join(notes)),
+            )
+        )
+    lines.append("")
+    lines.append(
+        "Types are pandas dtypes observed while assessing data quality; "
+        "'kind' is the heuristic profile family. No dataset values are "
+        "included in the dictionary."
+    )
+    return "\n".join(lines)
+
+
+@bp.route("/<int:dataset_id>/dictionary")
+@login_required
+def data_dictionary(dataset_id: int):
+    """Download the data dictionary (Markdown, or ?format=json)."""
+    dataset = _owned_dataset(dataset_id)
+    assessment = _latest_assessment(dataset)
+    if assessment is None:
+        flash("Run an assessment first; the dictionary is built from the profile.", "warning")
+        return redirect(url_for("datasets.detail", dataset_id=dataset.id))
+
+    columns = (assessment.profile_json or {}).get("columns", [])
+    if request.args.get("format") == "json":
+        payload = {
+            "dataset": dataset.name,
+            "dataset_id": dataset.id,
+            "assessment_id": assessment.id,
+            "row_count": dataset.row_count,
+            "column_count": dataset.column_count,
+            "columns": columns,
+        }
+        response = jsonify(payload)
+        download_name = _download_name(dataset).replace(
+            dataset.extension.lstrip(".") or "csv", "_dictionary.json"
+        )
+        response.headers["Content-Disposition"] = (
+            f"attachment; filename={download_name}"
+        )
+        return response
+
+    markdown = _dictionary_markdown(dataset, assessment)
+    download_name = _download_name(dataset).replace(
+        dataset.extension.lstrip(".") or "csv", "_dictionary.md"
+    )
+    return Response(
+        markdown,
+        mimetype="text/markdown",
+        headers={"Content-Disposition": f"attachment; filename={download_name}"},
+    )
 
 
 # ---------------------------------------------------------------------------
