@@ -19,6 +19,7 @@ ALLOWED_ACTIONS = frozenset({
     "api_key_revoked",
     "contract_deleted",
     "rule_deleted",
+    "dataset_file_missing",
 })
 
 

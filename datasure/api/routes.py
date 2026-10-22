@@ -515,6 +515,37 @@ def preview(dataset_id: int):
     return jsonify({"columns": list(df.columns), "rows": table[1:limit + 1]})
 
 
+# --------------------------------------------------------------------- files
+@bp.get("/datasets/<int:dataset_id>/file")
+def download_dataset_file(dataset_id: int):
+    """Download the currently stored file of an owned dataset.
+
+    This is the exact stored copy (the cleaned version when the dataset has
+    been processed), fetched with an attachment disposition so scripts can
+    pull back their data.
+    """
+    from flask import current_app, send_file
+
+    from ..datasets.routes import _download_name, user_upload_dir
+
+    dataset = _own_dataset(dataset_id)
+    path = user_upload_dir(current_app.instance_path, dataset.user_id) / (
+        dataset.storage_filename
+    )
+    if not path.exists():
+        from ..audit import record_audit
+
+        record_audit(
+            "dataset_file_missing", _api_user().id, dataset_id=dataset.id
+        )
+        raise ApiError("stored file is missing", 404)
+    return send_file(
+        path,
+        as_attachment=True,
+        download_name=_download_name(dataset),
+    )
+
+
 def _assessment_summary(assessment: Assessment) -> dict:
     return {
         "id": assessment.id,
