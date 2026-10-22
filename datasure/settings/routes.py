@@ -70,6 +70,31 @@ def revoke_api_key(key_id: int):
     return redirect(url_for("settings.api_keys"))
 
 
+@bp.get("/storage")
+@login_required
+def storage():
+    """Storage usage summary for your account."""
+    from sqlalchemy import func
+
+    from ..models import Dataset
+
+    base_query = Dataset.query.filter_by(user_id=current_user.id)
+    totals = base_query.with_entities(
+        func.count(Dataset.id).label("count"),
+        func.coalesce(func.sum(Dataset.size_bytes), 0).label("bytes"),
+    ).one()
+    biggest = (
+        base_query.order_by(Dataset.size_bytes.desc(), Dataset.id.desc()).first()
+    )
+    return render_template(
+        "settings/storage.html",
+        dataset_count=totals.count,
+        bytes_used=int(totals.bytes),
+        biggest=biggest,
+        upload_mb=current_app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024),
+    )
+
+
 @bp.get("/activity")
 @login_required
 def activity():

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Storage · DataSure AI{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="h3 mb-0">Storage usage</h1>
+  <span class="text-secondary small">per-user quota is governed by the global upload cap</span>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-secondary small">Datasets stored</div>
+        <div class="fs-2 fw-bold">{{ dataset_count }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-secondary small">Bytes used</div>
+        <div class="fs-2 fw-bold">{{ '{:,}'.format(bytes_used) }}</div>
+        <div class="small text-secondary">{{ '%.2f'|format(bytes_used / 1048576.0) }} MiB</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <div class="text-secondary small">Largest dataset</div>
+        {% if biggest %}
+        <div class="fw-semibold">
+          <a href="{{ url_for('datasets.detail', dataset_id=biggest.id) }}">{{ biggest.name }}</a>
+        </div>
+        <div class="small text-secondary">{{ '{:,}'.format(biggest.size_bytes or 0) }} bytes · {{ biggest.row_count }} rows</div>
+        {% else %}
+        <div class="text-secondary">no datasets yet</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mt-4">
+  <div class="card-header bg-white"><strong>Upload policy</strong></div>
+  <div class="card-body small text-secondary">
+    A single upload may be at most {{ upload_mb }} MiB. Deleting a dataset
+    removes its stored file, reports and history together. Storage counts are
+    computed live from the datasets table; the used bytes above never include
+    other users' files.
+  </div>
+</div>
+{% endblock %}
