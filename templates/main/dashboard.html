@@ -5,10 +5,25 @@
   <h1 class="h3 mb-0">Your datasets</h1>
   <a class="btn btn-primary" href="{{ url_for('datasets.upload') }}">Upload dataset</a>
 </div>
+
+<form class="row g-2 mb-3" method="get" action="{{ url_for('main.dashboard') }}" role="search">
+  <div class="col-auto flex-grow-1">
+    <input class="form-control" type="search" id="dataset-search" name="q"
+           value="{{ query }}" placeholder="Search dataset names…" maxlength="120"
+           {{ 'autofocus' if query else '' }}>
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-outline-secondary" type="submit">Search</button>
+    {% if query %}
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}"
+       aria-label="Clear the current search">Clear</a>
+    {% endif %}
+  </div>
+</form>
 {% if datasets %}
 <div class="card shadow-sm">
   <div class="card-header bg-white d-flex justify-content-between align-items-center">
-    <strong>Datasets ({{ page.total }})</strong>
+    <strong>{% if query %}Matches (“{{ query }}”): {{ visible_total }}{% else %}Datasets ({{ page.total }}){% endif %}</strong>
     <span class="small text-secondary">Page {{ page.page }} of {{ page.pages }}</span>
   </div>
 <div class="table-responsive">
@@ -52,10 +67,10 @@
   <span class="small text-secondary">Showing page {{ page.page }} of {{ page.pages }} ({{ page.total }} datasets)</span>
   <ul class="pagination pagination-sm mb-0">
     <li class="page-item {{ 'disabled' if not page.has_prev }}">
-      <a class="page-link" href="{{ url_for('main.dashboard', page=page.prev_num) }}" {% if not page.has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>Previous</a>
+      <a class="page-link" href="{{ url_for('main.dashboard', page=page.prev_num, q=query or None) }}" {% if not page.has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>Previous</a>
     </li>
     <li class="page-item {{ 'disabled' if not page.has_next }}">
-      <a class="page-link" href="{{ url_for('main.dashboard', page=page.next_num) }}" {% if not page.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>Next</a>
+      <a class="page-link" href="{{ url_for('main.dashboard', page=page.next_num, q=query or None) }}" {% if not page.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>Next</a>
     </li>
   </ul>
 </nav>
@@ -63,8 +78,13 @@
 {% else %}
 <div class="card shadow-sm">
   <div class="card-body text-center py-5">
+    {% if query %}
+    <p class="mb-2">No datasets match “{{ query }}”.</p>
+    <a class="btn btn-outline-secondary" href="{{ url_for('main.dashboard') }}">Clear search</a>
+    {% else %}
     <p class="mb-2">No datasets yet.</p>
     <a class="btn btn-primary" href="{{ url_for('datasets.upload') }}">Upload your first dataset</a>
+    {% endif %}
   </div>
 </div>
 {% endif %}

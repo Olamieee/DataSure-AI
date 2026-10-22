@@ -24,23 +24,34 @@ def index():
     return render_template("index.html")
 
 
+def _name_filter(query: str):
+    """Case-insensitive, wildcard-escaped LIKE filter on dataset names."""
+    escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return Dataset.name.ilike(f"%{escaped}%", escape="\\")
+
+
 @bp.route("/dashboard")
 @login_required
 def dashboard():
     from ..pagination import DEFAULT_PAGE_SIZE, paginate_stable
     page = request.args.get("page", 1, type=int)
+    query = (request.args.get("q") or "").strip()[:120]
+    query_expr = _name_filter(query) if query else None
     counts = (
         db.session.query(func.count(Dataset.id))
         .filter_by(user_id=current_user.id)
         .scalar()
     )
+    datasets_query = Dataset.query.filter_by(user_id=current_user.id)
+    if query_expr is not None:
+        datasets_query = datasets_query.filter(query_expr)
     result = paginate_stable(
-        Dataset.query.filter_by(user_id=current_user.id)
-        .order_by(Dataset.updated_at.desc(), Dataset.id.desc()),
+        datasets_query.order_by(Dataset.updated_at.desc(), Dataset.id.desc()),
         page=page,
         per_page=DEFAULT_PAGE_SIZE,
     )
     datasets = result["items"]
+    visible_total = result["total"]
     latest_scores = {
         dataset.id: latest_score_for(dataset) for dataset in datasets
     }
@@ -51,6 +62,8 @@ def dashboard():
         latest_scores=latest_scores,
         page=result,
         totals=totals,
+        query=query,
+        visible_total=visible_total,
     )
 
 
