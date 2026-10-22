@@ -6,7 +6,7 @@ Endpoints never return other users' data and never echo dataset contents.
 """
 from __future__ import annotations
 
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request
 from flask_login import current_user
 
 from ..assessment import load_dataset_dataframe
@@ -366,6 +366,40 @@ def get_assessment(assessment_id: int):
     payload = _assessment_summary(assessment)
     payload["profile"] = assessment.profile_json
     return jsonify(payload)
+
+
+@bp.get("/assessments/<int:assessment_id>/export/<export_kind>.csv")
+def export_assessment_csv(assessment_id: int, export_kind: str):
+    """CSV export of an assessment's issues or per-column statistics.
+
+    Mirrors the web downloads so scheduled API clients can export the exact
+    same artefacts the browser offers.
+    """
+    if export_kind not in {"issues", "stats"}:
+        raise ApiError("unknown export kind; use 'issues' or 'stats'", 404)
+    user = _api_user()
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None or assessment.user_id != user.id:
+        raise ApiError("assessment not found", 404)
+    import csv as _csv
+    import io as _io
+
+    from ..datasets.routes import _download_name, _export_rows
+
+    rows = _export_rows(assessment, export_kind)
+    buffer = _io.StringIO()
+    writer = _csv.writer(buffer, quoting=_csv.QUOTE_MINIMAL, lineterminator="\r\n")
+    for row in rows:
+        writer.writerow(row)
+    dataset = db.session.get(Dataset, assessment.dataset_id)
+    download_name = _download_name(dataset).replace(
+        dataset.extension.lstrip(".") or "csv", f"_{export_kind}.csv"
+    )
+    return Response(
+        buffer.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={download_name}"},
+    )
 
 
 @bp.get("/datasets/<int:dataset_id>/assessments")
