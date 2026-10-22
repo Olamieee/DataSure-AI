@@ -201,3 +201,36 @@ def prune_audits(days: int) -> None:
     )
     db.session.commit()
     click.echo(f"Deleted {deleted} audit event(s) older than {days} day(s).")
+
+
+@bp.cli.command("db-stats")
+def db_stats() -> None:
+    """Row counts per table; useful before backups or upgrades."""
+    from .models import (
+        ApiKey,
+        Assessment,
+        AuditEvent,
+        CleaningOperation,
+        Dataset,
+        SchemaContract,
+        ValidationRule,
+    )
+
+    tables = [
+        ("users", User),
+        ("datasets", Dataset),
+        ("assessments", Assessment),
+        ("cleaning_operations", CleaningOperation),
+        ("schema_contracts", SchemaContract),
+        ("validation_rules", ValidationRule),
+        ("api_keys", ApiKey),
+        ("audit_events", AuditEvent),
+    ]
+    empty = True
+    for name, model in tables:
+        count = int(db.session.query(model).count())
+        if count:
+            empty = False
+        click.echo(f"{name}: {count}")
+    if empty:
+        click.echo("Database is empty.")
