@@ -14,7 +14,9 @@
     {% if dataset.tags %}
     <p class="mb-0 mt-1">
       {% for tag in dataset.tags.split(',') %}
-      <span class="badge text-bg-secondary">{{ tag }}</span>
+      <a class="badge text-bg-secondary text-decoration-none"
+         href="{{ url_for('main.dashboard', q=tag) }}"
+         title="Show datasets tagged '{{ tag }}'">{{ tag }}</a>
       {% endfor %}
     </p>
     {% endif %}

@@ -84,6 +84,22 @@ def test_dashboard_search_matches_tags(logged_in_user):
     assert "boring name.csv" in body
 
 
+def test_tag_chips_link_to_dashboard_filter(logged_in_user):
+    client = logged_in_user["client"]
+    dataset_id = _upload(client, "chipped.csv")
+    _set_tags(client, dataset_id, "invoices")
+
+    detail = client.get(f"/datasets/{dataset_id}")
+    body = detail.data.decode("utf-8", errors="replace")
+    # the chip on the dataset detail page filters the dashboard for the tag
+    assert 'href="/dashboard?q=invoices"' in body
+
+    listing = client.get("/dashboard?q=invoices", follow_redirects=True)
+    listing_body = listing.data.decode("utf-8", errors="replace")
+    assert "chipped.csv" in listing_body
+    assert 'href="/dashboard?q=invoices"' in listing_body  # chip there too
+
+
 def test_tags_are_scoped_per_user(uploaded_messy_dataset, second_user):
     client = uploaded_messy_dataset["client"]
     dataset_id = uploaded_messy_dataset["dataset_id"]
