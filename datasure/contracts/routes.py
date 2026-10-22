@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from flask import (
     Blueprint,
+    Response,
     abort,
     flash,
     redirect,
@@ -83,6 +84,33 @@ def detail(contract_id: int):
         contract=contract,
         rows=summarise_contract(contract.contract_json),
         datasets_used=contract.datasets.all(),
+    )
+
+
+@bp.get("/<int:contract_id>/export.schema.json")
+@login_required
+def export_json_schema(contract_id: int):
+    """Download the contract as a portable JSON Schema (draft 2020-12)."""
+    import json as _json
+
+    from .schema_export import contract_to_json_schema
+
+    contract = _owned_contract(contract_id)
+    schema = contract_to_json_schema(contract.contract_json or {})
+    schema["title"] = contract.name or schema["title"]
+
+    safe = "".join(
+        c if c.isalnum() or c in ("-", "_") else "_" for c in contract.name
+    )[:80] or "contract"
+    body = _json.dumps(schema, indent=2, ensure_ascii=False) + "\n"
+    return Response(
+        body,
+        mimetype="application/json",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename={safe}_schema.json"
+            )
+        },
     )
 
 
