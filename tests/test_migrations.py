@@ -18,30 +18,31 @@ def _recorded_versions():
     return [row[0] for row in rows]
 
 
-def test_fresh_app_records_baseline(app):
+def test_fresh_app_records_all_steps(app):
     with app.app_context():
-        assert _recorded_versions() == [1]
-        assert current_version() == 1
-        row = db.session.query(SchemaState).one()
-        assert row.name == "baseline"
+        assert _recorded_versions() == [1, 2]
+        assert current_version() == 2
+        ratio = db.session.query(SchemaState).order_by(SchemaState.version)
+        names = [row.name for row in ratio.all()]
+        assert names == ["baseline", "add_dataset_tags"]
 
 
 def test_rerunning_is_idempotent(app):
     with app.app_context():
         assert run_pending_migrations(app) == []  # nothing to do the second time
-        assert _recorded_versions() == [1]
+        assert _recorded_versions() == [1, 2]
 
 
-def test_legacy_database_without_bookkeeping_is_marked(app):
-    """A pre-framework database gains its baseline marker on the next boot."""
+def test_legacy_bookkeeping_is_reapplied(app):
+    """A pre-framework database gains all step markers on the next boot."""
     with app.app_context():
         db.session.execute(text("DELETE FROM schema_state"))
         db.session.commit()
         assert current_version() == 0
 
         applied = run_pending_migrations(app)
-        assert applied == [(1, "baseline")]
-        assert _recorded_versions() == [1]
+        assert applied == [(1, "baseline"), (2, "add_dataset_tags")]
+        assert _recorded_versions() == [1, 2]
 
 
 def test_second_boot_on_same_database_is_up_to_date(tmp_path, monkeypatch):
@@ -54,7 +55,37 @@ def test_second_boot_on_same_database_is_up_to_date(tmp_path, monkeypatch):
     second = create_app("production")
     assert second  # boot twice without failure against the same schema
     with first.app_context():
-        assert current_version() == 1
+        assert current_version() == 2  # runs the baseline and tags steps
+
+
+def test_legacy_database_gains_the_tags_column(tmp_path, monkeypatch):
+    """A pre-framework database without datasets.tags is migrated on boot."""
+    from sqlalchemy import create_engine, text
+
+    monkeypatch.setenv("DATASURE_SECRET_KEY", "migration-test-key-1234567890")
+    monkeypatch.setenv("DATASURE_INSTANCE_PATH", str(tmp_path / "legacy-i"))
+    db_file = tmp_path / "legacy.db"
+    engine = create_engine(f"sqlite:///{db_file}")
+    with engine.begin() as connection:
+        connection.execute(text(
+            "CREATE TABLE datasets ("
+            " id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL,"
+            " name VARCHAR(200) NOT NULL,"
+            " storage_filename VARCHAR(160) NOT NULL,"
+            " original_filename VARCHAR(255) NOT NULL,"
+            " extension VARCHAR(10) NOT NULL,"
+            " size_bytes INTEGER NOT NULL, sha256 VARCHAR(64) NOT NULL)"
+        ))
+    monkeypatch.setenv("DATASURE_DATABASE_URL", f"sqlite:///{db_file}")
+
+    from datasure import create_app
+
+    app = create_app("production")
+    with app.app_context():
+        assert current_version() == 2
+        insp = db.inspect(db.engine)
+        names = [c["name"] for c in insp.get_columns("datasets")]
+        assert "tags" in names
 
 
 def test_failing_migration_rolls_back_and_raises(app):
@@ -65,26 +96,27 @@ def test_failing_migration_rolls_back_and_raises(app):
     with app.app_context():
         with mock.patch(
             "datasure.migrations.MIGRATIONS",
-            [(1, "baseline", lambda a, b: None), (2, "boom", exploding_step)],
+            [(1, "baseline", lambda a, b: None),
+             (2, "add_dataset_tags", lambda a, b: None),
+             (3, "boom", exploding_step)],
         ):
             import pytest
 
-            from datasure.migrations import MIGRATIONS as _  # noqa
             with pytest.raises(RuntimeError, match="bookkeeping failure"):
                 run_pending_migrations(app)
-        # state is untouched: still baseline only, no version 2 row
-        assert _recorded_versions() == [1]
-        assert current_version() == 1
+        # state is untouched: no phantom version 3 row after the rollback
+        assert _recorded_versions() == [1, 2]
+        assert current_version() == 2
 
 
 def test_progress_uses_timestamps_close_to_now(app):
     with app.app_context():
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from datasure.models import _utcnow
 
-        row = db.session.query(SchemaState).one()
-        assert isinstance(row.applied_at, datetime)
-        now = _utcnow().replace(tzinfo=None)  # CURRENT_TIMESTAMP is naive UTC
-        age = abs((now - row.applied_at).total_seconds())
-        assert age < 3600
+        rows = db.session.query(SchemaState).order_by(SchemaState.version)
+        for row in rows:
+            assert isinstance(row.applied_at, datetime)
+            now = _utcnow().replace(tzinfo=None)  # naive UTC
+            assert abs((now - row.applied_at).total_seconds()) < 3600

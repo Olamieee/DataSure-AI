@@ -40,6 +40,7 @@
         <td>
           <a class="fw-semibold" href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">{{ dataset.name }}</a>
           <div class="small text-secondary">{{ dataset.sha256[:12] }}…</div>
+          {% if dataset.tags %}<div class="small">{% for tag in dataset.tags.split(',') %}<span class="badge text-bg-light">{{ tag }}</span> {% endfor %}</div>{% endif %}
         </td>
         <td>{{ dataset.row_count or '—' }}</td>
         <td>{{ dataset.column_count or '—' }}</td>

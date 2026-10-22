@@ -11,6 +11,13 @@
       · {{ dataset.extension }} · {{ (dataset.size_bytes / 1024)|round(1) }} KB
       · uploaded {{ dataset.created_at.strftime('%Y-%m-%d %H:%M') }}
     </p>
+    {% if dataset.tags %}
+    <p class="mb-0 mt-1">
+      {% for tag in dataset.tags.split(',') %}
+      <span class="badge text-bg-secondary">{{ tag }}</span>
+      {% endfor %}
+    </p>
+    {% endif %}
   </div>
   <div class="btn-group">
     <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('datasets.download', dataset_id=dataset.id) }}">Download current file</a>
@@ -21,6 +28,29 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <button class="btn btn-outline-danger btn-sm" type="submit">Delete</button>
     </form>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white"><strong>Tags</strong></div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('datasets.set_tags', dataset_id=dataset.id) }}"
+          class="row g-2 align-items-center">
+      <div class="col-lg-8">
+        <label class="visually-hidden" for="dataset-tags">Tags (comma-separated)</label>
+        <input type="text" class="form-control" id="dataset-tags" name="tags"
+               value="{{ dataset.tags }}" maxlength="300"
+               placeholder="e.g. sales, 2024, to-clean">
+      </div>
+      <div class="col-auto">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn btn-outline-primary btn-sm" type="submit">Save tags</button>
+      </div>
+    </form>
+    <div class="small text-secondary mt-2">
+      Tags are simple labels for organizing uploads; up to 10 tags of up to 40
+      characters each. The dashboard search matches names and tags.
+    </div>
   </div>
 </div>
 

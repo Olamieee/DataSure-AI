@@ -373,6 +373,44 @@ def _latest_assessment(dataset: Dataset) -> Assessment | None:
     )
 
 
+def normalise_tags(raw: str) -> list[str] | None:
+    """Comma-separated, trimmed, de-duplicated tags (case-insensitive dedupe).
+
+    Returns ``None`` when the result would be too large to store.
+    """
+    seen: list[str] = []
+    for chunk in (raw or "").split(","):
+        tag = chunk.strip()[:40]
+        if tag and tag.lower() not in {s.lower() for s in seen}:
+            seen.append(tag)
+    if len(seen) > 10 or len(",".join(seen)) > 300:
+        return None
+    return seen
+
+
+def _tags_route(dataset_id: int):
+    dataset = _owned_dataset(dataset_id)
+    raw = request.form.get("tags") or ""
+    tags = normalise_tags(raw)
+    if tags is None:
+        flash("Too many tags: at most 10 tags of 40 characters each.", "danger")
+        return redirect(url_for("datasets.detail", dataset_id=dataset.id))
+    dataset.tags = ",".join(tags)
+    db.session.commit()
+    if tags:
+        flash(f"Tags updated: {', '.join(tags)}", "info")
+    else:
+        flash("Tags cleared.", "info")
+    return redirect(url_for("datasets.detail", dataset_id=dataset.id))
+
+
+@bp.route("/<int:dataset_id>/tags", methods=["POST"])
+@login_required
+def set_tags(dataset_id: int):
+    """Replace the dataset's free-form tags."""
+    return _tags_route(dataset_id)
+
+
 def _markdown_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace("|", "\\|").replace("\n", " ")
 

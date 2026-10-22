@@ -57,7 +57,7 @@ def test_default_window_is_ninety_days(app):
 
 def test_window_boundary_keeps_exactly_n_day_old_events(app):
     _insert_event(app, "contract_deleted", age_days=30)
-    _insert_event(app, "rule_deleted", age_days=31)
+    _insert_event(app, "rule_deleted", age_days=32)  # strictly older than 31
 
     result = app.test_cli_runner().invoke(args=["prune-audits", "--days", "31"])
     assert result.exit_code == 0

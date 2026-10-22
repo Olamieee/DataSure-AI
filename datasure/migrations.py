@@ -35,8 +35,24 @@ def _baseline(db_obj: Any, engine: Engine) -> None:
     """
 
 
+def _add_dataset_tags(db_obj: Any, engine: Engine) -> None:
+    """Step 2: add the ``datasets.tags`` column to databases predating it."""
+    insp = db.inspect(engine)
+    columns = [column["name"] for column in insp.get_columns("datasets")]
+    if "tags" in columns:
+        return  # idempotent: fresh create_all() already made the column
+    with engine.begin() as connection:
+        connection.execute(
+            db.text(
+                "ALTER TABLE datasets "
+                "ADD COLUMN tags VARCHAR(300) NOT NULL DEFAULT ''"
+            )
+        )
+
+
 MIGRATIONS: list[tuple[int, str, Callable[[Any, Engine], None]]] = [
     (1, "baseline", _baseline),
+    (2, "add_dataset_tags", _add_dataset_tags),
 ]
 
 LATEST_VERSION = max(entry[0] for entry in MIGRATIONS)

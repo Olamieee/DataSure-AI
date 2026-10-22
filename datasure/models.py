@@ -90,6 +90,10 @@ class Dataset(db.Model, TimestampMixin):
     has_original = db.Column(db.Boolean, nullable=False, default=True)
     contract_id = db.Column(db.Integer, db.ForeignKey("schema_contracts.id"), nullable=True)
     contract_passed = db.Column(db.Boolean)
+    # Free-form organisational labels, comma-separated in one column (kept
+    # deliberately simple; a lookup table can be introduced later if filtering
+    # by tags ever needs to be indexed per tag).
+    tags = db.Column(db.String(300), nullable=False, default="")
 
     assessments = db.relationship(
         "Assessment", backref="dataset", lazy="dynamic", cascade="all, delete-orphan"

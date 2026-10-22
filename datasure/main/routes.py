@@ -24,10 +24,12 @@ def index():
     return render_template("index.html")
 
 
-def _name_filter(query: str):
-    """Case-insensitive, wildcard-escaped LIKE filter on dataset names."""
+def _search_filter(query: str):
+    """Wildcard-escaped, case-insensitive match on names and tags."""
     escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-    return Dataset.name.ilike(f"%{escaped}%", escape="\\")
+    pattern = f"%{escaped}%"
+    return (Dataset.name.ilike(pattern, escape="\\")
+            | Dataset.tags.ilike(pattern, escape="\\"))
 
 
 @bp.route("/dashboard")
@@ -36,7 +38,7 @@ def dashboard():
     from ..pagination import DEFAULT_PAGE_SIZE, paginate_stable
     page = request.args.get("page", 1, type=int)
     query = (request.args.get("q") or "").strip()[:120]
-    query_expr = _name_filter(query) if query else None
+    query_expr = _search_filter(query) if query else None
     counts = (
         db.session.query(func.count(Dataset.id))
         .filter_by(user_id=current_user.id)
