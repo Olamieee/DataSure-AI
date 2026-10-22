@@ -177,3 +177,27 @@ def check_config(config_name: str | None) -> None:
             click.echo(f"PROBLEM: {problem}", err=True)
         raise click.exceptions.Exit(1)
     click.echo("Config looks deployable.")
+
+
+@bp.cli.command("prune-audits")
+@click.option(
+    "--days",
+    type=click.IntRange(min=1),
+    default=90,
+    show_default=True,
+    help="Delete audit events older than N days.",
+)
+def prune_audits(days: int) -> None:
+    """Apply audit retention: remove events beyond the keeping window."""
+    from datetime import timedelta
+
+    from .models import AuditEvent, _utcnow
+
+    cutoff = _utcnow().replace(tzinfo=None) - timedelta(days=days)
+    deleted = (
+        db.session.query(AuditEvent)
+        .filter(AuditEvent.created_at < cutoff)
+        .delete(synchronize_session=False)
+    )
+    db.session.commit()
+    click.echo(f"Deleted {deleted} audit event(s) older than {days} day(s).")
