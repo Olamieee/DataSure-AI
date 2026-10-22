@@ -123,10 +123,14 @@ All configuration is via environment variables (see `.env.example`):
 ## API overview (`/api/v1`)
 
 - `GET /health` — unauthenticated readiness probe
-- `GET /datasets` — list your datasets
+- `GET /datasets` — list your datasets (includes tags)
 - `GET /datasets/<id>` — dataset summary
+- `GET /datasets/<id>/columns` — column-level dictionary from the latest profile
+- `GET /datasets/<id>/file` — download the currently stored file
 - `POST /datasets/<id>/assessments` — run an assessment (`target_column`, `label`)
 - `GET /assessments/<id>` — full assessment (scores, issues, profile)
+- `GET /assessments/compare?from=<id>&to=<id>` — score deltas and issue changes
+- `GET /assessments/<id>/export/<kind>.csv` — export `issues`, `stats` or `history`
 - `GET /datasets/<id>/assessments` — assessment history
 - `GET /datasets/<id>/cleaning` — cleaning operation log
 - `GET /datasets/<id>/preview?rows=10` — first rows
@@ -147,7 +151,7 @@ correctness and the profiling time budget, scoring formula hand-recomputation,
 cleaning operations and the optimistic version guard, contract and rule
 engines, assessment comparison, auth flows, rate limiting, CSRF coverage,
 API auth/scoping/pagination, audit trail, escaping, exports and the WSGI
-entry point. Run with `.venv\Scripts\python -m pytest` (280+ tests).
+entry point. Run with `.venv\Scripts\python -m pytest` (370+ tests).
 
 ## Roadmap
 
