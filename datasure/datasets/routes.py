@@ -337,6 +337,13 @@ def export_csv(dataset_id: int, export_kind: str):
     )
 
 
+def _csv_safe(value) -> object:
+    """Neutralise CSV formula injection: '=1+1' must never execute in Excel."""
+    if isinstance(value, str) and value[:1] in {"=", "+", "@"}:
+        return "'" + value
+    return value
+
+
 def _export_rows(assessment: Assessment, export_kind: str) -> list[list]:
     """Plain tabular rows for CSV export (strings, no nested types)."""
     if export_kind == "issues":
@@ -349,7 +356,7 @@ def _export_rows(assessment: Assessment, export_kind: str) -> list[list]:
                 ", ".join(str(c) for c in issue.get("columns", []) or []),
                 str(issue.get("message", "")),
             ])
-        return rows
+        return [[_csv_safe(cell) for cell in row] for row in rows]
 
     # stats export: one row per column of the profile
     header = [
@@ -374,7 +381,7 @@ def _export_rows(assessment: Assessment, export_kind: str) -> list[list]:
         ])
     header += ["min", "max", "mean", "std", "median"]
     rows[0] = header
-    return rows
+    return [[_csv_safe(cell) for cell in row] for row in rows]
 
 
 def _history_rows(dataset: Dataset) -> list[list] | None:
@@ -402,7 +409,7 @@ def _history_rows(dataset: Dataset) -> list[list] | None:
             op.cells_changed,
             "yes" if op.success else "no",
         ])
-    return rows
+    return [[_csv_safe(cell) for cell in row] for row in rows]
 
 
 def _download_name(dataset: Dataset) -> str:
