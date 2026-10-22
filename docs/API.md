@@ -115,6 +115,11 @@ GET /api/v1/assessments/<id>/export/<kind>.csv
 ```
 CSV export of `issues`, `stats` (per-column statistics) or `history` (per-cleaning-operation rows). `404` for unknown kinds or unowned assessments.
 
+```
+GET /api/v1/datasets/<id>/trend
+```
+Chronological quality trajectory for one dataset: `{dataset_id, points: [{assessment_id, at, quality_score, issue_count}]}` ordered oldest first. `points` is empty before the first assessment. Exports are guarded against CSV formula injection (cells starting with `=`, `+` or `@` get a leading `'`).
+
 ### Schema contracts
 
 ```

@@ -17,6 +17,13 @@
 
 <nav class="mb-4">
   <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('datasets.detail', dataset_id=dataset.id) }}">← Dataset overview</a>
+  {% if previous %}
+  <a class="btn btn-sm btn-outline-secondary"
+     href="{{ url_for('datasets.compare', dataset_id=dataset.id, from=previous.id, to=assessment.id) }}"
+     title="Deltas and issue changes against run #{{ previous.id }}">
+    ⇄ Compare with previous run (#{{ previous.id }})
+  </a>
+  {% endif %}
 </nav>
 
 <div class="row g-4 mb-4">
