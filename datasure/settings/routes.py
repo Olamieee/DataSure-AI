@@ -68,3 +68,24 @@ def revoke_api_key(key_id: int):
     revoke_key(current_user, key_id)
     flash(f"API key '{record.name}' revoked.", "info")
     return redirect(url_for("settings.api_keys"))
+
+
+@bp.get("/activity")
+@login_required
+def activity():
+    """Your audit trail: recorded actions only you can see."""
+    from ..models import AuditEvent
+    from ..pagination import paginate_stable
+
+    page = request.args.get("page", 1, type=int)
+    result = paginate_stable(
+        AuditEvent.query.filter_by(user_id=current_user.id)
+        .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()),
+        page=page,
+        per_page=25,
+    )
+    return render_template(
+        "settings/activity.html",
+        events=result["items"],
+        page=result,
+    )
