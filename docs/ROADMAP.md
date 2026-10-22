@@ -2,7 +2,7 @@
 
 Status: the v1 core workflow (upload → assess → score → clean → report →
 history) plus the hardening layers below are implemented and covered by the
-automated test suite (230+ tests).
+automated test suite (330+ tests).
 
 ## Delivered
 
@@ -24,14 +24,26 @@ automated test suite (230+ tests).
 - CSV exports of issues and column statistics
 - Production WSGI entry point + deployment documentation
 - GitHub Actions CI (pytest on Python 3.12/3.13)
+- `/healthz` readiness endpoint with database check (JSON + 503 degraded)
+- Explicit schema migration framework (`datasure/migrations.py`, version
+  recorded in the database; failing steps abort startup loudly)
+- CLI operations: `create-user`, `list-users`, `check-config`, `prune-audits`
+- Activity page (users see their own audit events) and live storage usage page
+- Dashboard search (wildcard-escaped, case-insensitive) and paginated
+  contracts/rules pages
+- Duplicate-upload warning by content hash
+- REST API parity: contracts (list/retrieve/validate), rules (list/create/run),
+  CSV exports, dataset file download, assessment comparison
 
 ## Next up (priority order)
 
 1. **Background assessments** — only if profiling throughput on real datasets
    justifies the queueing complexity; failures surface as a recoverable job
    status.
-2. **PostgreSQL migration tooling** — Alembic-style schema migration history;
-   currently `create_all()` handles first-run creation only.
+2. **PostgreSQL hardening for the migration framework** — the version-tracked
+   migration framework ships and works on SQLite in production paths; extend
+   the step vocabulary with dialect-aware ALTER helpers before claiming
+   first-class PostgreSQL support.
 3. **Password reset flow** — requires an email-sending decision (no SMTP
    dependency exists yet).
 4. **Report accessibility polish** — landmark roles, table captions, focus

@@ -91,10 +91,13 @@ Notes:
 
 ## 6. Database migrations
 
-Schema changes are made through `db.create_all()` at startup, which creates
-missing tables on first run. **There is no migration tool installed yet**;
-treat schema changes as a Manually Reviewed change for existing multi-protocol
-databases. Back up the database before upgrading (Section 8).
+Schema evolution is version-tracked: `datasure/migrations.py` applies numbered
+steps recorded in the `schema_state` table before `create_all()` runs (which
+still adds any missing *tables* on first run). A failing migration aborts
+startup loudly instead of starting against an untracked schema. To add a
+schema change, append a `(version, name, function)` tuple to `MIGRATIONS`
+there — never edit an already-shipped step. Back up the database before
+upgrading (Section 8).
 
 ## 7. Data retention and deletion
 
@@ -117,17 +120,31 @@ databases. Back up the database before upgrading (Section 8).
 
 After each deploy:
 
-1. `GET /api/v1/health` → `{"status": "ok", ...}` (unauthenticated).
-2. Register a scratch account, upload a small CSV, run one assessment, delete
+1. `GET /api/v1/health` → `{"status": "ok", ...}` and `GET /healthz` →
+   `200 ok` / `503 degraded` (both unauthenticated).
+2. `flask check-config` in the deployment shell: reports the effective
+   secret-key state (never the value), database origin, upload limits and
+   instance-path writability; exits non-zero when deploying would fail.
+3. Register a scratch account, upload a small CSV, run one assessment, delete
    the dataset.
-3. Confirm `X-Request-ID` appears on responses (used for log/error
+4. Confirm `X-Request-ID` appears on responses (used for log/error
    correlation).
-4. Check the log stream contains no dataset contents, passwords or API key
+5. Check the log stream contains no dataset contents, passwords or API key
    material (see `docs/ARCHITECTURE.md` for the logging guarantees).
 
-## 10. Known deployment caveats (honest list)
+## 10. User and audit administration
 
-- No migration tooling (Section 6); first-run `create_all` only.
+- `flask create-user <username> <email>` (password prompted securely) or
+  `flask list-users` for an account inventory with dataset counts.
+- Audit events (uploads, deletions, cleanings, key management) are visible to
+  each user on `/settings/activity`. Apply a retention window with
+  `flask prune-audits --days=90` (runs from cron/Task Scheduler as needed).
+
+## 11. Known deployment caveats (honest list)
+
+- PostgreSQL-specific ALTER behaviour is not yet covered by automated tests;
+  the migration framework is exercised end-to-end on SQLite and an in-memory
+  database (Section 6).
 - Rate limiting is per worker process (Section 4).
 - No email flows: password reset is not offered; the password change page
   requires the current password.
