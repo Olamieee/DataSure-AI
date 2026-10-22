@@ -118,7 +118,7 @@ All configuration is via environment variables (see `.env.example`):
 - Logout is a POST action; `?next=` redirects accept only same-site relative paths.
 - Login attempts are rate limited per username and per client address.
 - Every response carries an `X-Request-ID` for log/error correlation.
-- More details: `docs/ARCHITECTURE.md`, `docs/CI.md`, `docs/DEPLOYMENT.md`, `CONTRIBUTING.md`.
+- More details: `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/CI.md`, `docs/DEPLOYMENT.md`, `CONTRIBUTING.md`.
 
 ## API overview (`/api/v1`)
 
@@ -130,10 +130,15 @@ All configuration is via environment variables (see `.env.example`):
 - `GET /datasets/<id>/assessments` — assessment history
 - `GET /datasets/<id>/cleaning` — cleaning operation log
 - `GET /datasets/<id>/preview?rows=10` — first rows
+- `GET /contracts` · `GET /contracts/<id>` — schema contracts
+- `POST /contracts/<id>/validate` — run contract validation (`dataset_id`)
+- `GET /rules` · `POST /rules` — list and create validation rules
+- `POST /datasets/<id>/rules/run` — run selected rules (`rule_ids`)
 
 Auth: browser session cookie, or `X-API-Key: <key>` header (generate multi-key,
 labelled, revocable keys on the Settings → API keys page; only SHA-256 hashes
-are stored and the raw value is displayed exactly once).
+are stored and the raw value is displayed exactly once). Full request/response
+shapes, status codes and pagination details: `docs/API.md`.
 
 ## Testing
 
@@ -142,7 +147,7 @@ correctness and the profiling time budget, scoring formula hand-recomputation,
 cleaning operations and the optimistic version guard, contract and rule
 engines, assessment comparison, auth flows, rate limiting, CSRF coverage,
 API auth/scoping/pagination, audit trail, escaping, exports and the WSGI
-entry point. Run with `.venv\Scripts\python -m pytest` (230+ tests).
+entry point. Run with `.venv\Scripts\python -m pytest` (280+ tests).
 
 ## Roadmap
 
