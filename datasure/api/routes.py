@@ -306,6 +306,7 @@ def list_datasets():
                     "size_bytes": d.size_bytes,
                     "storage_version": d.storage_version,
                     "is_cleaned": d.is_cleaned,
+                    "tags": [t for t in (d.tags or "").split(",") if t],
                     "created_at": d.created_at.isoformat(),
                 }
                 for d in result["items"]
@@ -352,6 +353,7 @@ def get_dataset(dataset_id: int):
         "sha256": dataset.sha256,
         "storage_version": dataset.storage_version,
         "is_cleaned": dataset.is_cleaned,
+        "tags": [t for t in (dataset.tags or "").split(",") if t],
         "created_at": dataset.created_at.isoformat(),
         "latest_assessment_id": latest.id if latest else None,
         "latest_quality_score": latest.quality_score if latest else None,

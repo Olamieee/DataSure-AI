@@ -55,7 +55,7 @@ GET /api/v1/health                 # unauthenticated, API-level
 ```
 GET /api/v1/datasets?page=1&per_page=20
 ```
-Dataset summaries (`id`, `name`, `extension`, `row_count`, `column_count`, `status`, `size_bytes`, `storage_version`, `is_cleaned`, `created_at`).
+Dataset summaries (`id`, `name`, `extension`, `row_count`, `column_count`, `status`, `size_bytes`, `storage_version`, `is_cleaned`, `tags`, `created_at`). `tags` is a list of the dataset's free-form labels (empty list when untagged).
 
 ```
 GET /api/v1/datasets/<id>
@@ -87,6 +87,33 @@ Content-Type: application/json
 GET /api/v1/assessments/<id>
 ```
 Adds the full `profile` object (column statistics) to the summary shape.
+
+### Assessments — comparisons, columns, exports
+
+```
+GET /api/v1/assessments/compare?from=<id>&to=<id>
+```
+Compares two of your assessments (cross-dataset is allowed as long as both are yours). Returns the same structure the web compare page renders:
+
+```json
+{"from": 3, "to": 9, "comparison": {"overall": {"from": 90.5, "to": 87.0, "delta": -3.5}, "verdict": "...", "issues": {"repeated": [], "new": [], "resolved": []}}}
+```
+`400` for missing or equal ids, `404` for unknown/unowned assessments.
+
+```
+GET /api/v1/datasets/<id>/columns
+```
+Column-level dictionary from the latest assessment's profile: `{dataset_id, assessment_id, row_count, column_count, columns: [...]}`. `404` when no assessment exists yet.
+
+```
+GET /api/v1/datasets/<id>/file
+```
+Downloads the currently stored file (`Content-Disposition: attachment`) — the cleaned version when the dataset has been processed. `404` if the stored file is missing from disk.
+
+```
+GET /api/v1/assessments/<id>/export/<kind>.csv
+```
+CSV export of `issues`, `stats` (per-column statistics) or `history` (per-cleaning-operation rows). `404` for unknown kinds or unowned assessments.
 
 ### Schema contracts
 
