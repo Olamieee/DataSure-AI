@@ -62,6 +62,11 @@ def upload():
             return render_template("datasets/upload.html"), 400
 
         display_name = sanitize_display_name(file_storage.filename)
+        duplicate = (
+            Dataset.query.filter_by(user_id=current_user.id, sha256=sha256)
+            .order_by(Dataset.created_at.desc(), Dataset.id.desc())
+            .first()
+        )
         dataset = Dataset(
             user_id=current_user.id,
             name=display_name,
@@ -76,6 +81,12 @@ def upload():
         )
         db.session.add(dataset)
         db.session.commit()
+        if duplicate is not None:
+            flash(
+                f"Note: you already uploaded identical file content as "
+                f"'{duplicate.name}' (dataset #{duplicate.id}).",
+                "warning",
+            )
         flash("Dataset uploaded successfully. Run an assessment below.", "success")
         return redirect(url_for("datasets.detail", dataset_id=dataset.id))
 
