@@ -290,10 +290,29 @@ def download(dataset_id: int):
 @bp.route("/<int:dataset_id>/export/<export_kind>.csv")
 @login_required
 def export_csv(dataset_id: int, export_kind: str):
-    """Download a CSV export of the latest assessment's findings or stats."""
-    if export_kind not in {"issues", "stats"}:
+    """Download a CSV export: latest assessment findings, stats or history."""
+    if export_kind not in {"issues", "stats", "history"}:
         abort(404)
     dataset = _owned_dataset(dataset_id)
+    if export_kind == "history":
+        history_rows = _history_rows(dataset)
+        if history_rows is None:
+            flash("No cleaning operations recorded yet.", "info")
+            return redirect(url_for("datasets.cleaning_history",
+                                    dataset_id=dataset.id))
+        buffer = io.StringIO()
+        writer = csv.writer(buffer, quoting=csv.QUOTE_MINIMAL,
+                            lineterminator="\r\n")
+        for row in history_rows:
+            writer.writerow(row)
+        download_name = _download_name(dataset).replace(
+            dataset.extension.lstrip(".") or "csv", "_history.csv"
+        )
+        return Response(
+            buffer.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={download_name}"},
+        )
     assessment = (
         Assessment.query.filter_by(dataset_id=dataset.id)
         .order_by(Assessment.created_at.desc())
@@ -355,6 +374,34 @@ def _export_rows(assessment: Assessment, export_kind: str) -> list[list]:
         ])
     header += ["min", "max", "mean", "std", "median"]
     rows[0] = header
+    return rows
+
+
+def _history_rows(dataset: Dataset) -> list[list] | None:
+    """Tabular rows of the dataset's cleaning-operation history, oldest first."""
+    operations = (
+        dataset.cleaning_operations.order_by(
+            CleaningOperation.created_at.asc(), CleaningOperation.id.asc()
+        ).all()
+    )
+    if not operations:
+        return None
+    header = [
+        "when", "operation", "rows_before", "rows_after",
+        "columns_before", "columns_after", "cells_changed", "success",
+    ]
+    rows = [header]
+    for op in operations:
+        rows.append([
+            op.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+            op.operation,
+            op.rows_before,
+            op.rows_after,
+            op.columns_before,
+            op.columns_after,
+            op.cells_changed,
+            "yes" if op.success else "no",
+        ])
     return rows
 
 

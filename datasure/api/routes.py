@@ -398,8 +398,8 @@ def export_assessment_csv(assessment_id: int, export_kind: str):
     Mirrors the web downloads so scheduled API clients can export the exact
     same artefacts the browser offers.
     """
-    if export_kind not in {"issues", "stats"}:
-        raise ApiError("unknown export kind; use 'issues' or 'stats'", 404)
+    if export_kind not in {"issues", "stats", "history"}:
+        raise ApiError("unknown export kind; use 'issues', 'stats' or 'history'", 404)
     user = _api_user()
     assessment = db.session.get(Assessment, assessment_id)
     if assessment is None or assessment.user_id != user.id:
@@ -407,14 +407,22 @@ def export_assessment_csv(assessment_id: int, export_kind: str):
     import csv as _csv
     import io as _io
 
-    from ..datasets.routes import _download_name, _export_rows
+    from ..datasets.routes import _download_name
 
-    rows = _export_rows(assessment, export_kind)
+    if export_kind == "history":
+        from ..datasets.routes import _history_rows
+
+        rows = _history_rows(assessment.dataset) or [["when", "operation"]]
+        dataset = assessment.dataset
+    else:
+        from ..datasets.routes import _export_rows
+
+        rows = _export_rows(assessment, export_kind)
+        dataset = db.session.get(Dataset, assessment.dataset_id)
     buffer = _io.StringIO()
     writer = _csv.writer(buffer, quoting=_csv.QUOTE_MINIMAL, lineterminator="\r\n")
     for row in rows:
         writer.writerow(row)
-    dataset = db.session.get(Dataset, assessment.dataset_id)
     download_name = _download_name(dataset).replace(
         dataset.extension.lstrip(".") or "csv", f"_{export_kind}.csv"
     )
