@@ -189,6 +189,20 @@ class SchemaContract(db.Model, TimestampMixin):
     datasets = db.relationship("Dataset", backref="schema_contract", lazy="dynamic")
 
 
+class SchemaState(db.Model):
+    """Schema migration bookkeeping (the roadmap's migration framework).
+
+    One row per applied migration step; ``current_version()`` returns the
+    highest applied version. See datasure/migrations.py.
+    """
+    __tablename__ = "schema_state"
+
+    id = db.Column(db.Integer, primary_key=True)
+    version = db.Column(db.Integer, nullable=False, unique=True)
+    name = db.Column(db.String(120), nullable=False)
+    applied_at = db.Column(db.DateTime, nullable=False, default=_utcnow)
+
+
 class CleaningOperation(db.Model, TimestampMixin):
     __tablename__ = "cleaning_operations"
 

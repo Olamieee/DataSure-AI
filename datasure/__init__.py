@@ -186,8 +186,14 @@ def create_app(config_name: str | None = None) -> Flask:
             return {"error": "page not found", "request_id": request_id}, 404
         return render_template("errors/404.html", request_id=request_id), 404
 
+    from .migrations import run_pending_migrations
+
+    runtime_migrations = run_pending_migrations(app)
     with app.app_context():
         db.create_all()
 
-    app.logger.info("DataSure AI initialised (config=%s)", conf)
+    app.logger.info(
+        "DataSure AI initialised (config=%s, schema=%s)", conf,
+        runtime_migrations and f"migrated {runtime_migrations}" or "current",
+    )
     return app
