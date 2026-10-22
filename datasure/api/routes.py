@@ -338,6 +338,31 @@ def get_dataset_columns(dataset_id: int):
     )
 
 
+@bp.get("/datasets/<int:dataset_id>/trend")
+def dataset_trend(dataset_id: int):
+    """Chronological quality trajectory across all of this dataset's runs."""
+    dataset = _own_dataset(dataset_id)
+    rows = (
+        Assessment.query.filter_by(dataset_id=dataset.id)
+        .order_by(Assessment.created_at.asc(), Assessment.id.asc())
+        .all()
+    )
+    return jsonify(
+        {
+            "dataset_id": dataset.id,
+            "points": [
+                {
+                    "assessment_id": row.id,
+                    "at": row.created_at.isoformat(),
+                    "quality_score": row.quality_score,
+                    "issue_count": len(row.issues_json or []),
+                }
+                for row in rows
+            ],
+        }
+    )
+
+
 @bp.get("/datasets/<int:dataset_id>")
 def get_dataset(dataset_id: int):
     dataset = _own_dataset(dataset_id)
