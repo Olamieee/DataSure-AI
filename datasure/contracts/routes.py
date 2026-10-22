@@ -30,12 +30,18 @@ def _owned_contract(contract_id: int) -> SchemaContract:
 @bp.get("/")
 @login_required
 def list_contracts():
-    contracts = (
+    from ..pagination import DEFAULT_PAGE_SIZE, paginate_stable
+
+    page = request.args.get("page", 1, type=int)
+    result = paginate_stable(
         SchemaContract.query.filter_by(user_id=current_user.id)
-        .order_by(SchemaContract.created_at.desc())
-        .all()
+        .order_by(SchemaContract.created_at.desc(), SchemaContract.id.desc()),
+        page=page,
+        per_page=DEFAULT_PAGE_SIZE,
     )
-    return render_template("contracts/list.html", contracts=contracts)
+    return render_template(
+        "contracts/list.html", contracts=result["items"], page=result
+    )
 
 
 @bp.post("/create/<int:dataset_id>")

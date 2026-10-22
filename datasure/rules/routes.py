@@ -37,13 +37,21 @@ def _owned_rule(rule_id: int) -> ValidationRule:
 @bp.get("/")
 @login_required
 def list_rules():
-    rules = (
+    from ..pagination import DEFAULT_PAGE_SIZE, paginate_stable
+
+    page = request.args.get("page", 1, type=int)
+    result = paginate_stable(
         ValidationRule.query.filter_by(user_id=current_user.id)
-        .order_by(ValidationRule.created_at.desc())
-        .all()
+        .order_by(ValidationRule.created_at.desc(), ValidationRule.id.desc()),
+        page=page,
+        per_page=DEFAULT_PAGE_SIZE,
     )
-    return render_template("rules/list.html", rules=rules,
-                           rule_types=RULE_TYPES)
+    return render_template(
+        "rules/list.html",
+        rules=result["items"],
+        page=result,
+        rule_types=RULE_TYPES,
+    )
 
 
 def _form_to_rule_json() -> tuple[str, dict]:

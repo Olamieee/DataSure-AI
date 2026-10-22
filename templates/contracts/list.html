@@ -15,6 +15,10 @@
 </div>
 {% if contracts %}
 <div class="card shadow-sm">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <strong>Contracts ({{ page.total }})</strong>
+    <span class="small text-secondary">Page {{ page.page }} of {{ page.pages }}</span>
+  </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead class="table-light"><tr><th>Name</th><th>Columns</th><th>Created</th><th></th></tr></thead>
@@ -38,6 +42,19 @@
     </table>
   </div>
 </div>
+{% if page.pages > 1 %}
+<nav class="d-flex justify-content-between align-items-center my-3" aria-label="Contract pages">
+  <span class="small text-secondary">Showing page {{ page.page }} of {{ page.pages }} ({{ page.total }} contracts)</span>
+  <ul class="pagination pagination-sm mb-0">
+    <li class="page-item {{ 'disabled' if not page.has_prev }}">
+      <a class="page-link" href="{{ url_for('contracts.list_contracts', page=page.prev_num) }}">Previous</a>
+    </li>
+    <li class="page-item {{ 'disabled' if not page.has_next }}">
+      <a class="page-link" href="{{ url_for('contracts.list_contracts', page=page.next_num) }}">Next</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
 {% else %}
 <div class="card shadow-sm">
   <div class="card-body text-center py-5">

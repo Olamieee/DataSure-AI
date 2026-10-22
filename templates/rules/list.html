@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="h3 mb-0">Validation rules</h1>
-  <span class="small text-secondary">{{ rules|length }} saved rule(s)</span>
+  <span class="small text-secondary">{{ page.total }} saved rule(s)</span>
 </div>
 
 <div class="row g-4">
@@ -33,6 +33,21 @@
           </tbody>
         </table>
       </div>
+      {% if page.pages > 1 %}
+      <nav class="mt-2" aria-label="Rule pages">
+        <ul class="pagination pagination-sm mb-2">
+          <li class="page-item {{ 'disabled' if not page.has_prev }}">
+            <a class="page-link" href="{{ url_for('rules.list_rules', page=page.prev_num) }}"
+               {% if not page.has_prev %}tabindex="-1" aria-disabled="true"{% endif %}>Previous</a>
+          </li>
+          <li class="page-item disabled"><span class="page-link">Page {{ page.page }} of {{ page.pages }}</span></li>
+          <li class="page-item {{ 'disabled' if not page.has_next }}">
+            <a class="page-link" href="{{ url_for('rules.list_rules', page=page.next_num) }}"
+               {% if not page.has_next %}tabindex="-1" aria-disabled="true"{% endif %}>Next</a>
+          </li>
+        </ul>
+      </nav>
+      {% endif %}
       {% else %}
       <div class="card-body text-secondary">
         No rules yet. Create one on the right — for example
