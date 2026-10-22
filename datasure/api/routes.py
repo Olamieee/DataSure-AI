@@ -574,6 +574,18 @@ def preview(dataset_id: int):
 
 
 # --------------------------------------------------------------------- files
+@bp.delete("/datasets/<int:dataset_id>")
+def delete_dataset(dataset_id: int):
+    """Permanently delete an owned dataset, its stored file and history."""
+    from ..datasets.routes import remove_dataset
+
+    dataset = _own_dataset(dataset_id)
+    payload = {"id": dataset.id, "name": dataset.name,
+               "file_removed": dataset.storage_filename}
+    remove_dataset(dataset, _api_user().id)
+    return jsonify({"deleted": True, "dataset": payload})
+
+
 @bp.get("/datasets/<int:dataset_id>/file")
 def download_dataset_file(dataset_id: int):
     """Download the currently stored file of an owned dataset.

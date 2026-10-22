@@ -285,16 +285,25 @@ def assessment_report(dataset_id: int, assessment_id: int):
 @login_required
 def delete(dataset_id: int):
     dataset = _owned_dataset(dataset_id)
-    upload_dir = user_upload_dir(current_app.instance_path, dataset.user_id)
-    delete_file(upload_dir / dataset.storage_filename)
-    db.session.delete(dataset)
-    from ..audit import record_audit
-
-    record_audit("dataset_deleted", current_user.id, dataset_id=dataset.id,
-                 name=dataset.name)
-    db.session.commit()
+    remove_dataset(dataset, current_user.id)
     flash("Dataset deleted.", "info")
     return redirect(url_for("main.dashboard"))
+
+
+def remove_dataset(dataset: Dataset, actor_id: int) -> None:
+    """Shared deletion path for the web view and the API.
+
+    Deletes the stored file, records the audit event and removes the row
+    (including dependent assessments, cleaning ops and rule results).
+    """
+    upload_dir = user_upload_dir(current_app.instance_path, dataset.user_id)
+    delete_file(upload_dir / dataset.storage_filename)
+    from ..audit import record_audit
+
+    record_audit("dataset_deleted", actor_id, dataset_id=dataset.id,
+                 name=dataset.name)
+    db.session.delete(dataset)
+    db.session.commit()
 
 
 @bp.route("/<int:dataset_id>/download")

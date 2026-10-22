@@ -118,7 +118,14 @@ CSV export of `issues`, `stats` (per-column statistics) or `history` (per-cleani
 ```
 GET /api/v1/datasets/<id>/trend
 ```
-Chronological quality trajectory for one dataset: `{dataset_id, points: [{assessment_id, at, quality_score, issue_count}]}` ordered oldest first. `points` is empty before the first assessment. Exports are guarded against CSV formula injection (cells starting with `=`, `+` or `@` get a leading `'`).
+Chronological quality trajectory for one dataset: `{dataset_id, points: [{assessment_id, at, quality_score, issue_count}]}` ordered oldest first. `points` is empty before the first assessment.
+
+```
+DELETE /api/v1/datasets/<id>
+```
+Permanently deletes an owned dataset — the row, its assessments, cleaning history, rule results and the stored file — and records the `dataset_deleted` audit event. Returns `{"deleted": true, "dataset": {"id", "name", "file_removed"}}`. `404` for unknown/unowned ids, `401` without credentials. There is no undo; upload the file again if needed.
+
+Exports are guarded against CSV formula injection (cells starting with `=`, `+` or `@` get a leading `'`).
 
 ### Schema contracts
 

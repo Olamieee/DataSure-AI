@@ -124,6 +124,7 @@ All configuration is via environment variables (see `.env.example`):
 
 - `GET /health` — unauthenticated readiness probe
 - `GET /datasets` — list your datasets (includes tags)
+- `DELETE /datasets/<id>` — permanently delete a dataset
 - `GET /datasets/<id>` — dataset summary
 - `GET /datasets/<id>/columns` — column-level dictionary from the latest profile
 - `GET /datasets/<id>/file` — download the currently stored file
