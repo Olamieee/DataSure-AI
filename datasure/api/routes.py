@@ -314,6 +314,29 @@ def list_datasets():
     )
 
 
+@bp.get("/datasets/<int:dataset_id>/columns")
+def get_dataset_columns(dataset_id: int):
+    """Column-level dictionary from the latest assessment's profile."""
+    dataset = _own_dataset(dataset_id)
+    latest = (
+        Assessment.query.filter_by(dataset_id=dataset.id)
+        .order_by(Assessment.created_at.desc(), Assessment.id.desc())
+        .first()
+    )
+    if latest is None:
+        raise ApiError("no assessment for this dataset yet", 404)
+    columns = (latest.profile_json or {}).get("columns", [])
+    return jsonify(
+        {
+            "dataset_id": dataset.id,
+            "assessment_id": latest.id,
+            "row_count": dataset.row_count,
+            "column_count": dataset.column_count,
+            "columns": columns,
+        }
+    )
+
+
 @bp.get("/datasets/<int:dataset_id>")
 def get_dataset(dataset_id: int):
     dataset = _own_dataset(dataset_id)
