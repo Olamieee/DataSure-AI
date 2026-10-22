@@ -33,7 +33,9 @@ automated test suite (330+ tests).
   contracts/rules pages
 - Duplicate-upload warning by content hash
 - REST API parity: contracts (list/retrieve/validate), rules (list/create/run),
-  CSV exports, dataset file download, assessment comparison
+  CSV exports, dataset file download, assessment comparison, column dictionary
+- Report accessibility: main landmark, figure/figcaption charts,
+  explicit empty-issues wording (report captions and scoped headers already in)
 
 ## Next up (priority order)
 
@@ -46,8 +48,6 @@ automated test suite (330+ tests).
    first-class PostgreSQL support.
 3. **Password reset flow** — requires an email-sending decision (no SMTP
    dependency exists yet).
-4. **Report accessibility polish** — landmark roles, table captions, focus
-   order pass against the HTML report template.
 
 ## Later / consideration only
 

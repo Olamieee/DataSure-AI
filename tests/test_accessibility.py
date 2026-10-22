@@ -61,8 +61,11 @@ def test_report_chart_images_have_descriptive_alt(app, logged_in_user):
         )
     resp = client.get(f"/datasets/{dataset_id}/assessments/{assessment_id}/report")
     text = resp.data.decode("utf-8")
-    assert 'alt="Chart for ' in text
+    assert 'alt="' in text and " chart for " in text  # descriptive, dataset-tied
+    assert "<figure>" in text and "<figcaption>" in text
+    assert text.count("<figure>") == text.count("<img ")  # every chart is a figure
     assert '<img src="data:' in text  # embedded chart images remain data URIs
+    assert "<main>" in text  # standalone report keeps a main landmark
 
 
 def test_report_is_valid_standalone_html(app, logged_in_user):
@@ -86,4 +89,31 @@ def test_report_is_valid_standalone_html(app, logged_in_user):
     assert "<html lang=\"en\">" in text
     # no stray template leakage from the caption refactor
     assert "{%" not in text and "}}" not in text
+
+
+def test_report_empty_issues_state_is_explicit(app, logged_in_user):
+    """When nothing is flagged, the report says so instead of silence."""
+    client = logged_in_user["client"]
+    resp = client.post(
+        "/datasets/upload",
+        data={"file": (io.BytesIO(b"a,b\n1,x\n2,y\n"), "cleanish.csv")},
+        content_type="multipart/form-data", follow_redirects=False,
+    )
+    dataset_id = int(resp.headers["Location"].rstrip("/").rsplit("/", 1)[-1])
+    client.post(f"/datasets/{dataset_id}/assess", data={}, follow_redirects=True)
+    with app.app_context():
+        assessment = (
+            Assessment.query.filter_by(dataset_id=dataset_id)
+            .order_by(Assessment.id.desc()).first()
+        )
+        if assessment.issues_json:  # force the empty state deterministically
+            assessment.issues_json = []
+            db.session.commit()
+            assessment_id = assessment.id
+        else:
+            assessment_id = assessment.id
+    resp = client.get(f"/datasets/{dataset_id}/assessments/{assessment_id}/report")
+    text = resp.data.decode("utf-8")
+    assert "No issues were detected" in text
+    assert "not proof of data quality" in text
 

@@ -19,6 +19,7 @@
 </style>
 </head>
 <body>
+<main>
 <h1>DataSure AI — Dataset Quality Report</h1>
 <p>
   Dataset: <strong>{{ dataset.name }}</strong> ({{ dataset.extension }}, v{{ dataset.storage_version }})<br>
@@ -53,6 +54,7 @@ Weights: completeness 30% · uniqueness 15% · validity 25% · consistency 20% �
 </table>
 
 <h2>Detected issues ({{ assessment.issues_json | length }})</h2>
+{% if assessment.issues_json %}
 {% for issue in assessment.issues_json %}
 <p>
   <span class="badge-{{ 'critical' if issue.severity == 'critical' else ('warning' if issue.severity == 'warning' else 'info') }}">{{ issue.severity }}</span>
@@ -61,10 +63,21 @@ Weights: completeness 30% · uniqueness 15% · validity 25% · consistency 20% �
   <br><em>Recommendation:</em> {{ issue.recommendation }}
 </p>
 {% endfor %}
+{% else %}
+<p>No issues were detected by the assessment heuristics. Treat this as
+"<em>nothing found</em>", not proof of data quality.</p>
+{% endif %}
 
 <h2>Visual analytics</h2>
 {% for key, uri in charts.items() %}
-<img src="{{ uri }}" alt="Chart for {{ key.replace('_', ' ') }}" role="img">
+<figure>
+  <img src="{{ uri }}"
+       alt="{{ key.replace('_', ' ') }} chart for {{ dataset.name }}"
+       role="img">
+  <figcaption>{{ key.replace('_', ' ') }}</figcaption>
+</figure>
+{% else %}
+<p class="muted">No charts were produced for this assessment.</p>
 {% endfor %}
 
 <h2>Column statistics</h2>
@@ -115,5 +128,6 @@ Weights: completeness 30% · uniqueness 15% · validity 25% · consistency 20% �
   DataSure AI — heuristic dataset quality assessment. Scores are computed from the
   documented formulas above and are not scientifically validated measures of data quality.
 </p>
+</main>
 </body>
 </html>
