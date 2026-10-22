@@ -99,13 +99,17 @@ def storage():
 @login_required
 def activity():
     """Your audit trail: recorded actions only you can see."""
+    from ..audit import ALLOWED_ACTIONS
     from ..models import AuditEvent
     from ..pagination import paginate_stable
 
     page = request.args.get("page", 1, type=int)
+    action = (request.args.get("action") or "").strip()[:64]
+    base_query = AuditEvent.query.filter_by(user_id=current_user.id)
+    if action:
+        base_query = base_query.filter(AuditEvent.action == action)
     result = paginate_stable(
-        AuditEvent.query.filter_by(user_id=current_user.id)
-        .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()),
+        base_query.order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()),
         page=page,
         per_page=25,
     )
@@ -113,4 +117,6 @@ def activity():
         "settings/activity.html",
         events=result["items"],
         page=result,
+        action=action,
+        allowed_actions=sorted(ALLOWED_ACTIONS),
     )
