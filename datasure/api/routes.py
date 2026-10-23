@@ -554,6 +554,41 @@ def list_assessments(dataset_id: int):
     })
 
 
+@bp.get("/assessments/<int:assessment_id>/report")
+def get_assessment_report(assessment_id: int):
+    """The full JSON data-quality report as one download-shaped payload.
+
+    Same generator as the web report download (`?format=json`), returned with
+    an attachment disposition so scripts can persist it directly.
+    """
+    from datetime import datetime, timezone
+
+    from flask import Response
+
+    from ..reports import generate_json_report
+
+    user = _api_user()
+    assessment = db.session.get(Assessment, assessment_id)
+    if assessment is None or assessment.user_id != user.id:
+        raise ApiError("assessment not found", 404)
+    dataset = db.session.get(Dataset, assessment.dataset_id)
+    operations = (
+        dataset.cleaning_operations
+        .order_by(CleaningOperation.created_at.asc())
+        .all()
+    )
+    content = generate_json_report(dataset, assessment, operations)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    name = (
+        f"report_dataset{dataset.id}_assessment{assessment.id}_{stamp}.json"
+    )
+    return Response(
+        content,
+        mimetype="application/json",
+        headers={"Content-Disposition": f"attachment; filename={name}"},
+    )
+
+
 @bp.get("/datasets/<int:dataset_id>/cleaning")
 def cleaning_history(dataset_id: int):
     dataset = _own_dataset(dataset_id)

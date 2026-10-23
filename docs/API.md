@@ -116,6 +116,11 @@ GET /api/v1/assessments/<id>/export/<kind>.csv
 CSV export of `issues`, `stats` (per-column statistics) or `history` (per-cleaning-operation rows). `404` for unknown kinds or unowned assessments.
 
 ```
+GET /api/v1/assessments/<id>/report
+```
+The full JSON data-quality report (same generator as the web download) returned with an attachment disposition. `404` for unknown/unowned assessments.
+
+```
 GET /api/v1/datasets/<id>/trend
 ```
 Chronological quality trajectory for one dataset: `{dataset_id, points: [{assessment_id, at, quality_score, issue_count}]}` ordered oldest first. `points` is empty before the first assessment.

@@ -132,6 +132,7 @@ All configuration is via environment variables (see `.env.example`):
 - `GET /assessments/<id>` — full assessment (scores, issues, profile)
 - `GET /assessments/compare?from=<id>&to=<id>` — score deltas and issue changes
 - `GET /assessments/<id>/export/<kind>.csv` — export `issues`, `stats` or `history`
+- `GET /assessments/<id>/report` — full JSON data-quality report
 - `GET /datasets/<id>/assessments` — assessment history
 - `GET /datasets/<id>/cleaning` — cleaning operation log
 - `GET /datasets/<id>/preview?rows=10` — first rows
