@@ -20,6 +20,7 @@ ALLOWED_ACTIONS = frozenset({
     "contract_deleted",
     "rule_deleted",
     "dataset_file_missing",
+    "password_reset_cli",
 })
 
 

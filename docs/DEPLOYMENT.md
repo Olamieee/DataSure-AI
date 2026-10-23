@@ -99,6 +99,14 @@ schema change, append a `(version, name, function)` tuple to `MIGRATIONS`
 there — never edit an already-shipped step. Back up the database before
 upgrading (Section 8).
 
+Migration plumbing is dialect-aware as of 2026-10: the progress lookup uses
+the SQLAlchemy inspector (no backend-specific catalog queries) and column
+additions go through the shared `add_column(engine, table, statement)`
+helper, so steps written with plain `VARCHAR ...` definitions work on both
+SQLite and PostgreSQL. Automated coverage is still SQLite-only end to end —
+PostgreSQL deployments should run one boot on a staging copy first (Section 8
+backup applies).
+
 ## 7. Data retention and deletion
 
 - Deleting a dataset removes its stored file, rows in related tables
@@ -136,17 +144,23 @@ After each deploy:
 
 - `flask create-user <username> <email>` (password prompted securely) or
   `flask list-users` for an account inventory with dataset counts.
+- `flask reset-password --username=<name>` (new password prompted securely)
+  when a user loses access — no email flow exists, so this is run on the
+  server by an operator and audited as `password_reset_cli`.
 - Audit events (uploads, deletions, cleanings, key management) are visible to
   each user on `/settings/activity`. Apply a retention window with
   `flask prune-audits --days=90` (runs from cron/Task Scheduler as needed).
 
 ## 11. Known deployment caveats (honest list)
 
-- PostgreSQL-specific ALTER behaviour is not yet covered by automated tests;
-  the migration framework is exercised end-to-end on SQLite and an in-memory
-  database (Section 6).
+- Migration SQL is written for SQLite and PostgreSQL (shared `add_column`
+  helper, inspector-based progress lookup), but automated tests exercise the
+  framework end-to-end on SQLite only — run one boot against a PostgreSQL
+  staging copy before production upgrades.
 - Rate limiting is per worker process (Section 4).
-- No email flows: password reset is not offered; the password change page
-  requires the current password.
+- No email flows: forgotten passwords are recovered by an operator running
+  `flask reset-password --username=<name>` on the server (audited as
+  `password_reset_cli`); the web password change page requires the current
+  password.
 - The app serves its own static files; a CDN is unnecessary, but proxy-side
   caching of `/static/*` is fine.

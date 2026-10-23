@@ -203,6 +203,27 @@ def prune_audits(days: int) -> None:
     click.echo(f"Deleted {deleted} audit event(s) older than {days} day(s).")
 
 
+@bp.cli.command("reset-password")
+@click.option("--username", required=True, help="Account whose password to replace.")
+@click.password_option(
+    confirmation_prompt="Repeat for confirmation: ",
+    help="New password (asked interactively when omitted).",
+)
+def reset_password(username: str, password: str) -> None:
+    """Recover an account without email: staff runs this on the server."""
+    from .audit import record_audit
+
+    user = User.query.filter_by(username=username.strip()).first()
+    if user is None:
+        raise click.ClickException(f"No account named '{username.strip()}'.")
+    if len(password or "") < 8:
+        raise click.ClickException("Password must be at least 8 characters.")
+    user.set_password(password)
+    record_audit("password_reset_cli", user.id)
+    click.echo(f"Password replaced for '{user.username}'. The user can log in now.")
+    click.echo("Review the change on Settings > Activity (password_reset_cli).")
+
+
 @bp.cli.command("db-stats")
 def db_stats() -> None:
     """Row counts per table; useful before backups or upgrades."""
