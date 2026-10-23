@@ -35,19 +35,27 @@ def _baseline(db_obj: Any, engine: Engine) -> None:
     """
 
 
+def add_column(engine: Engine, table: str, statement: str) -> None:
+    """Dialect-aware ``ADD COLUMN`` helper for migration steps.
+
+    `statement` is the column definition *without* the table prefix, e.g.
+    ``tags VARCHAR(300) NOT NULL DEFAULT ''``. The ``ALTER TABLE`` prefix is
+    the same on SQLite and PostgreSQL, so steps written this way stay valid
+    when the deployment moves engines.
+    """
+    with engine.begin() as connection:
+        connection.execute(
+            db.text(f"ALTER TABLE {table} ADD COLUMN {statement}")
+        )
+
+
 def _add_dataset_tags(db_obj: Any, engine: Engine) -> None:
     """Step 2: add the ``datasets.tags`` column to databases predating it."""
     insp = db.inspect(engine)
     columns = [column["name"] for column in insp.get_columns("datasets")]
     if "tags" in columns:
         return  # idempotent: fresh create_all() already made the column
-    with engine.begin() as connection:
-        connection.execute(
-            db.text(
-                "ALTER TABLE datasets "
-                "ADD COLUMN tags VARCHAR(300) NOT NULL DEFAULT ''"
-            )
-        )
+    add_column(engine, "datasets", "tags VARCHAR(300) NOT NULL DEFAULT ''")
 
 
 MIGRATIONS: list[tuple[int, str, Callable[[Any, Engine], None]]] = [
@@ -58,19 +66,22 @@ MIGRATIONS: list[tuple[int, str, Callable[[Any, Engine], None]]] = [
 LATEST_VERSION = max(entry[0] for entry in MIGRATIONS)
 
 
-def current_version() -> int:
-    """Highest recorded applied version (0 when the table is absent/empty)."""
-    has_table = db.session.execute(
-        text(
-            "SELECT name FROM sqlite_master "
-            "WHERE type='table' AND name='schema_state'"
-        )
-    ).fetchone()
-    if not has_table:
+def current_version(engine: Engine | None = None) -> int:
+    """Highest recorded applied version (0 when the table is absent/empty).
+
+    Table existence is detected via the SQLAlchemy inspector, so this works
+    unchanged on SQLite AND PostgreSQL (the earlier ``sqlite_master`` lookup
+    was SQLite-only).
+    """
+    if engine is None:
+        engine = db.engine
+    insp = db.inspect(engine)
+    if not insp.has_table("schema_state"):
         return 0
-    row = db.session.execute(
-        text("SELECT MAX(version) FROM schema_state")
-    ).fetchone()
+    with engine.connect() as connection:
+        row = connection.execute(
+            text("SELECT MAX(version) FROM schema_state")
+        ).fetchone()
     return int(row[0] or 0)
 
 

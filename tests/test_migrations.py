@@ -27,6 +27,31 @@ def test_fresh_app_records_all_steps(app):
         assert names == ["baseline", "add_dataset_tags"]
 
 
+def test_version_lookup_accepts_an_explicit_engine(app):
+    """current_version() must work on any engine, not just the app-bound one.
+
+    The pre-2026 implementation read SQLite's `sqlite_master` directly, which
+    made the framework SQLite-only; the inspector-based lookup below is the
+    contract PostgreSQL deployments will rely on.
+    """
+    from sqlalchemy import create_engine
+
+    other = create_engine("sqlite://")  # separate throwaway engine
+    with app.app_context():
+        assert current_version(other) == 0          # table not there yet
+        with other.begin() as connection:
+            connection.execute(text(
+                "CREATE TABLE schema_state ("
+                " id INTEGER PRIMARY KEY, version INTEGER NOT NULL,"
+                " name VARCHAR(120) NOT NULL, applied_at DATETIME NOT NULL)"
+            ))
+            connection.execute(text(
+                "INSERT INTO schema_state (version, name, applied_at)"
+                " VALUES (7, 'future-db', CURRENT_TIMESTAMP)"
+            ))
+        assert current_version(other) == 7
+
+
 def test_rerunning_is_idempotent(app):
     with app.app_context():
         assert run_pending_migrations(app) == []  # nothing to do the second time
