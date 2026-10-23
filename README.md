@@ -123,6 +123,7 @@ All configuration is via environment variables (see `.env.example`):
 ## API overview (`/api/v1`)
 
 - `GET /health` — unauthenticated readiness probe
+- `GET /me` — which account this credential reaches (`session`/`api_key`)
 - `GET /datasets` — list your datasets (includes tags)
 - `DELETE /datasets/<id>` — permanently delete a dataset
 - `GET /datasets/<id>` — dataset summary

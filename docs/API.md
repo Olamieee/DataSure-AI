@@ -53,6 +53,11 @@ GET /api/v1/health                 # unauthenticated, API-level
 ### Datasets
 
 ```
+GET /api/v1/me
+```
+Identity check for scripts: `{"id", "username", "email", "created_at", "datasets", "auth"}` where `auth` is `session` or `api_key`; API-key access also adds `key_last_used`. `401` without credentials.
+
+```
 GET /api/v1/datasets?page=1&per_page=20
 ```
 Dataset summaries (`id`, `name`, `extension`, `row_count`, `column_count`, `status`, `size_bytes`, `storage_version`, `is_cleaned`, `tags`, `created_at`). `tags` is a list of the dataset's free-form labels (empty list when untagged).

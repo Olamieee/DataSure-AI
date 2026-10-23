@@ -312,6 +312,29 @@ def health():
     return jsonify({"status": "ok", "service": "datasure-ai", "api_version": "v1"})
 
 
+@bp.get("/me")
+def who_am_i():
+    """Identity check for scripts: which account does this credential reach."""
+    user = _api_user()
+    via_key = "datasure_api_user" in request.environ
+    payload = {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "created_at": user.created_at.isoformat(),
+        "datasets": int(Dataset.query.filter_by(user_id=user.id).count()),
+        "auth": "api_key" if via_key else "session",
+    }
+    if via_key:
+        from ..auth.apikeys import authenticate_key
+
+        record, _ = authenticate_key(request.headers.get("X-API-Key", ""))
+        payload["key_last_used"] = (
+            record.last_used_at.isoformat() if record.last_used_at else None
+        )
+    return jsonify(payload)
+
+
 @bp.get("/datasets")
 def list_datasets():
     user = _api_user()
