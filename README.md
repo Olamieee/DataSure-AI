@@ -137,6 +137,7 @@ All configuration is via environment variables (see `.env.example`):
 - `GET /datasets/<id>/preview?rows=10` — first rows
 - `GET /contracts` · `GET /contracts/<id>` — schema contracts
 - `POST /contracts/<id>/validate` — run contract validation (`dataset_id`)
+- `POST /datasets/<id>/contract` — generate a contract from the stored columns
 - `GET /rules` · `POST /rules` — list and create validation rules
 - `POST /datasets/<id>/rules/run` — run selected rules (`rule_ids`)
 

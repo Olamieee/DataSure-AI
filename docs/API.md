@@ -130,6 +130,14 @@ Exports are guarded against CSV formula injection (cells starting with `=`, `+` 
 ### Schema contracts
 
 ```
+POST /api/v1/datasets/<id>/contract
+Content-Type: application/json
+
+{"name": "people snapshot", "description": "optional"}
+```
+Generates a new schema-contract snapshot from the dataset's currently stored columns (the same generator the web detail page uses). `name` defaults to the dataset name, `description` to a generated summary. `201` with `{"created": true, "contract_summary": {...}}` (same shape as `GET /contracts/<id>`). `400` for a non-object JSON body, `404` for unknown/unowned datasets, `422` when the stored file can no longer be parsed.
+
+```
 GET /api/v1/contracts?page=1
 GET /api/v1/contracts/<id>
 ```

@@ -94,6 +94,44 @@ def _contract_summary(contract: SchemaContract) -> dict:
     }
 
 
+@bp.post("/datasets/<int:dataset_id>/contract")
+def create_contract_from_dataset(dataset_id: int):
+    """Generate a schema-contract snapshot from an owned dataset.
+
+    Body (JSON, all fields optional): ``{"name": "...", "description": "..."}``.
+    ``name`` defaults to the dataset name. Mirrors the web flow: the contract
+    is built from the currently stored file's columns.
+    """
+    from ..contracts.engine import contract_from_dataframe
+
+    payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        raise ApiError("body must be a JSON object", 400)
+
+    dataset = _own_dataset(dataset_id)
+    try:
+        df = load_dataset_dataframe(dataset)
+    except DatasetParseError as exc:
+        raise ApiError(str(exc), 422)
+
+    name = str(payload.get("name") or dataset.name).strip()[:120]
+    description = str(payload.get("description") or "").strip()[:500] or (
+        f"Generated from '{dataset.name}' "
+        f"({df.shape[0]} rows × {df.shape[1]} columns)."
+    )
+    record = SchemaContract(
+        user_id=_api_user().id,
+        name=name,
+        description=description,
+        contract_json=contract_from_dataframe(df, name),
+    )
+    db.session.add(record)
+    db.session.commit()
+    return jsonify(
+        {"created": True, "contract_summary": _contract_summary(record)}
+    ), 201
+
+
 @bp.get("/contracts")
 def list_contracts():
     user = _api_user()
