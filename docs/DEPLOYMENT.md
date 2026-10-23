@@ -113,6 +113,10 @@ backup applies).
   (assessments, cleaning operations, contract links) and its audit events'
   dataset link (`ON DELETE SET NULL`). User-initiated deletion is the primary
   retention mechanism.
+- Users can download their complete account contents (dataset metadata and
+  history, contracts, rules, audit trail) from **Settings → Storage → "Export
+  all my data (JSON)"** at `/settings/export`; the API mirrors single resources
+  via `/api/v1/me` and per-dataset downloads.
 - Uploaded files live solely under `<instance>/uploads/user_<id>/` with
   server-generated UUID names; the original filename is only stored for display
   and download naming.

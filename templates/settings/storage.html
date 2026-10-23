@@ -42,6 +42,19 @@
 </div>
 
 <div class="card shadow-sm mt-4">
+  <div class="card-header bg-white"><strong>Your data</strong></div>
+  <div class="card-body">
+    <p class="mb-2">
+      Download your account's complete dataset — datasets (metadata, assessment
+      and cleaning history, a content preview), schema contracts, rules and the
+      audit trail — as one JSON file.
+    </p>
+    <a class="btn btn-outline-primary btn-sm"
+       href="{{ url_for('settings.export_data') }}">Export all my data (JSON)</a>
+  </div>
+</div>
+
+<div class="card shadow-sm mt-4">
   <div class="card-header bg-white"><strong>Upload policy</strong></div>
   <div class="card-body small text-secondary">
     A single upload may be at most {{ upload_mb }} MiB. Deleting a dataset
