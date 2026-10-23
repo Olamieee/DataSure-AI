@@ -13,8 +13,14 @@ Checks:
 from __future__ import annotations
 
 import os
+import sys
 import tempfile
 import urllib.parse
+from pathlib import Path
+
+# Running as `python scripts/pg_smoke.py` does not put the repo root on the
+# import path the way pytest does; add it explicitly.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 TABLES = {
     "users", "datasets", "assessments", "cleaning_operations",
