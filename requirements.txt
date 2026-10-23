@@ -16,3 +16,6 @@ matplotlib>=3.8
 
 # Development / testing
 pytest>=8.0
+
+# Optional: only needed to run DataSure AI against PostgreSQL
+# (pip install "psycopg[binary]>=3.2"); the CI smoke job installs it itself.

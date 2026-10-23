@@ -158,8 +158,11 @@ After each deploy:
 ## 11. Known deployment caveats (honest list)
 
 - Migration SQL is written for SQLite and PostgreSQL (shared `add_column`
-  helper, inspector-based progress lookup), but automated tests exercise the
-  framework end-to-end on SQLite only — run one boot against a PostgreSQL
+  helper, inspector-based progress lookup). Automated tests exercise the
+  framework end-to-end on SQLite; CI additionally runs `scripts/pg_smoke.py`
+  on every push inside a PostgreSQL service container (workflow job
+  `postgres`: boot, migrate, second-boot idempotence, user registration).
+  Complex new migration steps should still be exercised against a PostgreSQL
   staging copy before production upgrades.
 - Rate limiting is per worker process (Section 4).
 - No email flows: forgotten passwords are recovered by an operator running

@@ -35,3 +35,38 @@ jobs:
           pip install -r requirements.txt
       - name: Run test suite
         run: python -m pytest -q
+
+  postgres:
+    # Real-engine smoke test: boot, migrate and register on PostgreSQL.
+    # Complements the pytest matrix (SQLite) per docs/DEPLOYMENT.md §11.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: datasure
+          POSTGRES_PASSWORD: datasure
+          POSTGRES_DB: datasure
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U datasure"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATASURE_DATABASE_URL: postgresql+psycopg://datasure:datasure@localhost:5432/datasure
+      DATASURE_SECRET_KEY: ci-only-not-a-secret
+      DATASURE_INSTANCE_PATH: /tmp/datasure-pg-smoke
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt "psycopg[binary]>=3.2"
+      - name: PostgreSQL smoke test
+        run: python scripts/pg_smoke.py
